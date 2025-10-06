@@ -1,6 +1,7 @@
 #ifndef ERROR_H
 #define ERROR_H
 
+#include <stdlib.h>
 #include <stdio.h>
 
 void logError(const wchar_t * message) {
@@ -9,7 +10,6 @@ void logError(const wchar_t * message) {
         perror("Error creating error log file.");
         return;
     }
-
     fprintf(fp, "%ls", message);
     fclose(fp);
     exit(1);
@@ -21,26 +21,24 @@ void logDebugMessage(const wchar_t * message) {
         perror("Error creating debug log file.");
         return;
     }
-
     fprintf(fp, "%ls", message);
     fclose(fp);
 }
 
-int deleteFile(const char *filename) {
-    if (remove(filename) == 0) {
-        return 1; // success
-    } else {
-        perror("Error deleting file");
-        return 0; // failure
+void deleteLogFile(const char *filename) {
+    if (remove(filename) != 0) {
+        wchar_t* errMsg = (wchar_t*)malloc(sizeof(char) * 40);
+        swprintf(errMsg, L"Error deleting file \"", "%s\"\n", filename);
+        logError(errMsg);
     }
 }
 
 void wipeErrorLog() {
-    deleteFile("error_log.txt");
+    deleteLogFile("error_log.txt");
 }
 
 void wipeDebugLog() {
-    deleteFile("debug_log.txt");
+    deleteLogFile("debug_log.txt");
 }
 
 #endif
