@@ -57,6 +57,11 @@
   "C_Cpp_Runner.useLinkTimeOptimization": false,
   "C_Cpp_Runner.msvcSecureNoWarnings": false,
   "files.associations": {
-    "window.h": "c"
+    "window.h": "c",
+    "stdio.h": "c",
+    "error.h": "c",
+    "game.h": "c",
+    "windows.h": "c",
+    "time.h": "c"
   }
 }

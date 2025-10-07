@@ -1,13 +1,12 @@
 #ifndef WINDOW_H
 #define WINDOW_H
 
-// Ensure Windows APIs use Unicode versions
-#ifndef UNICODE
-#define UNICODE
-
 #include <windows.h>
 #include "game.h"
 
+// Ensure Windows APIs use Unicode versions
+#ifndef UNICODE
+#define UNICODE
 #endif
 
 
@@ -24,8 +23,13 @@ typedef LRESULT (CALLBACK *WNDPROC)(HWND, UINT, WPARAM, LPARAM);
 
 // ******************** Macros ********************
 
-#define MAIN_WINDOW_CLASS L"MAIN_WIN"
-#define GAME_WINDOW_CLASS L"SNAKE_WIN"
+/*
+#define DEBUG
+
+#ifdef DEBUG
+    logDebugMessage(L"Running drawFrame()...\n\n");
+#endif
+*/
 
 /* ************************************************************ */
 
@@ -112,6 +116,71 @@ void RegisterWindowClass (HINSTANCE hInstance, const wchar_t * className, WNDPRO
     RegisterClass(&wc);
 }
 
+LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    switch (uMsg)
+    {
+    case WM_DESTROY:
+        PostQuitMessage(0);
+        return 0;
+    
+    case WM_SETCURSOR:
+        DefWindowProc(hwnd, uMsg, wParam, lParam);
+        return 0;
+    case WM_PAINT:
+    {
+        paintMainWindow(hwnd);
+        return 0;
+    }
+    case WM_KEYDOWN:
+    {
+        if (wParam == 'W' || wParam == 'w' || wParam == VK_UP) {
+            if (gameStatus != PAUSE_GAME) {
+                changeSnakeDirection(DIRECTION_UP);
+            }
+        }
+        else if (wParam == 'A' || wParam == 'a' || wParam == VK_LEFT) {
+            if (gameStatus != PAUSE_GAME) {
+                changeSnakeDirection(DIRECTION_LEFT);
+            }
+        }
+        else if (wParam == 'S' || wParam == 's' || wParam == VK_DOWN) {
+            if (gameStatus != PAUSE_GAME) {
+                changeSnakeDirection(DIRECTION_DOWN);
+            }
+        }
+        else if (wParam == 'D' || wParam == 'd' || wParam == VK_RIGHT) {
+            if (gameStatus != PAUSE_GAME) {
+                changeSnakeDirection(DIRECTION_RIGHT);
+            }
+        }
+        else if (wParam == VK_RETURN) {
+            togglePause();
+        }
+        return 0;
+    }
+    case WM_TIMER:
+    {
+        if (gameStatus == START_GAME) {
+            logDebugMessage(L"Game Started!\n\n");
+            updateState(mainWindow, gameWindow);
+        }
+        else {
+            logDebugMessage(L"Game paused.\n\n");
+        }
+        return 0;
+    }
+    case WM_SIZE:
+    {
+        updateGameboardRect(mainWindow);
+        GameBoardRect gameboardRect = getGameBoardRect();
+        MoveWindow(gameWindow, gameboardRect.left, gameboardRect.top, gameboardRect.width, gameboardRect.height, TRUE);
+        InvalidateRect(mainWindow, NULL, TRUE);
+        InvalidateRect(gameWindow, NULL, TRUE);
+    }
+    }
+    return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
 
 void paintMainWindow(HWND hwnd) {
     PAINTSTRUCT ps;
@@ -149,115 +218,42 @@ void paintMainWindow(HWND hwnd) {
 
 // ******************** Game Window Setup ********************
 
-void createGameWindow(HINSTANCE hInstance) {
-    RegisterWindowClass(hInstance, MAIN_WINDOW_CLASS, SnakeWindowProc);
-    RegisterWindowClass(hInstance, GAME_WINDOW_CLASS, GameWindowProc);
-    mainWindow = CreateWindowEx(
-        0,                              // Optional window styles.
-        MAIN_WINDOW_CLASS,                      // Window class
-        L"SNAKE",                       // Window text
-        WS_OVERLAPPEDWINDOW,            // Window style
-        // Size and position
-        CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-        NULL,       // Parent window    
-        NULL,       // Menu
-        hInstance,  // Instance handle
-        NULL        // Additional application data
-        );
-    if (mainWindow == NULL) {
-        logError(L"Error in function createGameWindow() of window.h.\n\tmainWindow == NULL. Window creation failed.\n");
-    }
-
+HWND CreateGameBoardWindow(HWND hwnd, const wchar_t * className, HINSTANCE hInstance) {
     RECT parentRect;
-    GetClientRect(mainWindow, &parentRect);
+    GetClientRect(hwnd, &parentRect);
     GameBoardRect gameboardRect = getGameBoardRect();
-    gameWindow = CreateWindowEx(
+    HWND gameBoardWindow = CreateWindowEx(
         0,                              // Optional window styles.
-        GAME_WINDOW_CLASS,                      // Window class
+        className,                      // Window class
         NULL,                       // Window text
         WS_CHILD | WS_VISIBLE,            // Window style
+
         // Size and position
         gameboardRect.left, gameboardRect.top, gameboardRect.width, gameboardRect.height,
-        mainWindow,       // Parent window    
+
+        hwnd,       // Parent window    
         NULL,       // Menu
         hInstance,  // Instance handle
         NULL        // Additional application data
         );
-    if (gameWindow == NULL) {
-        logError(L"Error in function createGameWindow() of window.h.\n\tgameWindow == NULL. Window creation failed.\n");
-    }
+    gameBoard.window = gameBoardWindow;
+    return gameBoardWindow;
 }
 
-LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK GameWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+    static BOOL firstPaint = TRUE;
     switch (uMsg)
     {
         case WM_DESTROY:
-        {
             PostQuitMessage(0);
             return 0;
-        }
         case WM_SETCURSOR:
-        {
             DefWindowProc(hwnd, uMsg, wParam, lParam);
             return 0;
-        }
-            
         case WM_PAINT:
         {
-            if (hwnd == mainWindow) {
-                paintMainWindow(hwnd);
-            }
-            else {
-                paintGameWindow(gameWindow);
-            }
-            return 0;
-        }
-        case WM_KEYDOWN:
-        {
-            if (wParam == 'W' || wParam == 'w' || wParam == VK_UP) {
-                if (gameStatus != PAUSE_GAME) {
-                    changeSnakeDirection(DIRECTION_UP);
-                }
-            }
-            else if (wParam == 'A' || wParam == 'a' || wParam == VK_LEFT) {
-                if (gameStatus != PAUSE_GAME) {
-                    changeSnakeDirection(DIRECTION_LEFT);
-                }
-            }
-            else if (wParam == 'S' || wParam == 's' || wParam == VK_DOWN) {
-                if (gameStatus != PAUSE_GAME) {
-                    changeSnakeDirection(DIRECTION_DOWN);
-                }
-            }
-            else if (wParam == 'D' || wParam == 'd' || wParam == VK_RIGHT) {
-                if (gameStatus != PAUSE_GAME) {
-                    changeSnakeDirection(DIRECTION_RIGHT);
-                }
-            }
-            else if (wParam == VK_RETURN) {
-                togglePause();
-            }
-            return 0;
-        }
-        case WM_TIMER:
-        {
-            if (gameStatus == START_GAME) {
-                logDebugMessage(L"Game Started!\n\n");
-                updateState(mainWindow, gameWindow);
-            }
-            else {
-                logDebugMessage(L"Game paused.\n\n");
-            }
-            return 0;
-        }
-        case WM_SIZE:
-        {
-            updateGameboardRect(mainWindow);
-            GameBoardRect gameboardRect = getGameBoardRect();
-            MoveWindow(gameWindow, gameboardRect.left, gameboardRect.top, gameboardRect.width, gameboardRect.height, TRUE);
-            InvalidateRect(mainWindow, NULL, TRUE);
-            InvalidateRect(gameWindow, NULL, TRUE);
+            paintGameWindow(gameWindow);
             return 0;
         }
     }
@@ -281,7 +277,7 @@ void drawSnake(HDC hdc) {
         logError(L"Error in function drawSnake(HDC hdc) of window.h.\n\tsnake.node == NULL\n");
     }
     SnakeNode* node = snake.node;
-    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, snakeBrush);
+    HBRUSH oldBrush = SelectObject(hdc, snakeBrush);
     while (node != NULL) {
         RECT cell_bounds = getCellBoundingRect(node->x, node->y);
         drawCircle(hdc, cell_bounds);
@@ -295,7 +291,7 @@ void drawGameField(RECT field, HDC hdc) {
 }
 
 void drawWalls(HDC hdc) {
-    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, wallBrush);
+    HBRUSH oldBrush = SelectObject(hdc, wallBrush);
     for (int i = 1; i <= GAMEGRIDCOLS; i++) {
         RECT cell_bounds = getCellBoundingRect(i, 1);
         drawCircle(hdc, cell_bounds);
@@ -316,7 +312,7 @@ void drawCircle(HDC hdc, RECT cell_bounds) {
 
 void drawGridDebug(RECT field, HDC hdc) {
     HPEN hPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
-    HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
+    HPEN hOldPen = SelectObject(hdc, hPen);
 
     int cell_width = getGameBoardCellWidth();
     int cell_height = getGameBoardCellHeight();

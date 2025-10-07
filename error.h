@@ -4,6 +4,16 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+// ******************** Function Prototypes ********************
+void logError(const wchar_t * message);
+void logDebugMessage(const wchar_t * message);
+void deleteLogFile(const char *filename);
+void wipeErrorLog();
+void wipeDebugLog();
+void resetLogs();
+/* ************************************************************ */
+
+// ******************** Function Implementations ********************
 void logError(const wchar_t * message) {
     FILE *fp = fopen("error_log.txt", "w");
     if (fp == NULL) {
@@ -26,9 +36,10 @@ void logDebugMessage(const wchar_t * message) {
 }
 
 void deleteLogFile(const char *filename) {
-    if (remove(filename) != 0) {
-        wchar_t* errMsg = (wchar_t*)malloc(sizeof(char) * 40);
-        swprintf(errMsg, L"Error deleting file \"", "%s\"\n", filename);
+    int removeVal = remove(filename);
+    if (!(removeVal == 0 || removeVal == -1)) {
+        wchar_t errMsg[256];
+        swprintf(errMsg, 256, L"remove() return value: %d - Error deleting file \"%hs\"\n", removeVal, filename);
         logError(errMsg);
     }
 }
@@ -40,5 +51,11 @@ void wipeErrorLog() {
 void wipeDebugLog() {
     deleteLogFile("debug_log.txt");
 }
+
+void resetLogs() {
+    wipeDebugLog();
+    wipeErrorLog();
+}
+/* ************************************************************ */
 
 #endif
