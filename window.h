@@ -149,12 +149,19 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                 paintMainWindow();
             }
             else {
+                /*
+                RECT windowRect; GetClientRect(hwnd, &windowRect);
+                PAINTSTRUCT ps;
+                HDC hdc = BeginPaint(hwnd, &ps);
+                FillRect(hdc, &ps.rcPaint, fruitBrush);
+                */
                 paintGameWindow();
             }
             return 0;
         }
         case WM_KEYDOWN:
         {
+            
             if (wParam == 'W' || wParam == 'w' || wParam == VK_UP) {
                 if (gameStatus != PAUSE_GAME) {
                     changeSnakeDirection(DIRECTION_UP);
@@ -176,6 +183,16 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                 }
             }
             else if (wParam == VK_RETURN) {
+                /*
+                wchar_t errMsg[256];
+                if (hwnd == mainWindow) {
+                    swprintf(errMsg, 256, L"mainWindow window received WM_KEYDOWN signal.\n");
+                }
+                if (hwnd == gameWindow) {
+                    swprintf(errMsg, 256, L"gameWindow window received WM_KEYDOWN signal.\n");
+                }
+                logDebugMessage(errMsg);
+                */
                 togglePause();
             }
             return 0;
@@ -184,6 +201,12 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         {
             if (gameStatus == START_GAME) {
                 generateNextFrame();
+                RECT gameField; GetClientRect(gameWindow, &gameField);
+                gameField.left = gameBoard.cell_width;
+                gameField.right = gameField.right - gameBoard.cell_width;
+                gameField.top = gameBoard.cell_height;
+                gameField.bottom = gameField.bottom - gameBoard.cell_height;
+                InvalidateRect(gameWindow, &gameField, TRUE);
             }
             return 0;
         }
@@ -221,7 +244,6 @@ void updateGameboardPos() {
 void paintMainWindow() {
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(mainWindow, &ps);
-
     FillRect(hdc, &ps.rcPaint, backgroundBrush);
 
     const wchar_t *title = L"Snake Game";
@@ -335,24 +357,7 @@ void deleteBrushes() {
 }
 /*   -------------   */
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* ************************************************************ */
-
-
-
 
 
 

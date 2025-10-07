@@ -10,7 +10,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     gameSetup();
     windowSetup(hInstance);
     ShowWindow(mainWindow, nCmdShow);
-    //SetTimer(mainWindow, 1, 100, NULL);
+    SetTimer(mainWindow, 1, 100, NULL);
     MSG msg = { };
     while (GetMessage(&msg, NULL, 0, 0) > 0)
     {

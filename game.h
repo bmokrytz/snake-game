@@ -216,6 +216,9 @@ SnakeNode* createSnakeNode(SnakeNode config) {
 
 /*   --- Game Loop ---   */
 void generateNextFrame() {
+    wchar_t errMsg[256];
+    swprintf(errMsg, 256, L"running generateNextFrame()...\n");
+    logDebugMessage(errMsg);
     moveSnake();
     int collisionVal = collisionCheck();
     switch (collisionVal) {
@@ -235,8 +238,9 @@ void generateNextFrame() {
 void togglePause() {
     if (gameStatus == PAUSE_GAME) {
         gameStatus = START_GAME;
+        return;
     }
-    else if (gameStatus == START_GAME) {
+    else {
         gameStatus = PAUSE_GAME;
     }
 }
@@ -365,6 +369,11 @@ void updateGameboard(RECT mainWindowRect) {
     gameBoard.rect.top    = (mainWindowHeight - gameBoard.rect.height) / 2;
     gameBoard.rect.right  = gameBoard.rect.left + gameBoard.rect.width;
     gameBoard.rect.bottom = gameBoard.rect.top + gameBoard.rect.height;
+    if ((GAMEBOARDWIDTH % GAMEGRIDCOLS || GAMEBOARDHEIGHT % GAMEGRIDROWS) != 0) {
+        logError(L"Error in function setupGridCellDimensions() of game.h.\n\t(gameBoard.rect.width \% gameBoard.grid_cols) != 0\n");
+    }
+    gameBoard.cell_width = (gameBoard.rect.width / gameBoard.grid_cols);
+    gameBoard.cell_height = (gameBoard.rect.height / gameBoard.grid_rows);
 }
 
 RECT getCellBoundingRect(int x, int y) {
@@ -373,6 +382,15 @@ RECT getCellBoundingRect(int x, int y) {
     rect.left = rect.right - gameBoard.cell_width;
     rect.bottom = y * gameBoard.cell_height;
     rect.top = rect.bottom - gameBoard.cell_height;
+    return rect;
+}
+
+RECT getCellBoundingRect2(int x, int y) {
+    RECT rect;
+    rect.right = gameBoard.rect.left + (x * gameBoard.cell_width);
+    rect.left = gameBoard.rect.left + (rect.right - gameBoard.cell_width);
+    rect.bottom = gameBoard.rect.top + (y * gameBoard.cell_height);
+    rect.top = gameBoard.rect.top + (rect.bottom - gameBoard.cell_height);
     return rect;
 }
 /*   -------------   */
