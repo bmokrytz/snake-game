@@ -175,9 +175,10 @@ void updateGameboardPos();
 void paintMainWindow();
 void paintUIElements();
 void paintGameWindow();
-void drawGridDebug(RECT field, HDC hdc);
+void drawDebugGrid(RECT field, HDC hdc);
 void drawGameField(RECT field, HDC hdc);
 void drawSnake(HDC hdc);
+void drawFruit(HDC hdc);
 void drawWalls(HDC hdc);
 void drawCircle(HDC hdc, RECT cell_bounds);
 
@@ -285,6 +286,7 @@ void createGameWindows(HINSTANCE hInstance) {
         logError(L"Error in function createGameWindow() of window.h.\n\tmainWindow == NULL. Window creation failed.\n");
     }
     updateGameboardPos();
+    initializeCellAndNodeData();
     RECT parentRect;
     GetClientRect(mainWindow, &parentRect);
     GameBoardRect gameboardRect = getGameboardRect();
@@ -423,8 +425,6 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         case WM_SIZE:
         {
             updateGameboardPos();
-            GameBoardRect gameboardRect = getGameboardRect();
-            MoveWindow(gameWindow, gameboardRect.left, gameboardRect.top, gameboardRect.width, gameboardRect.height, TRUE);
             InvalidateRect(mainWindow, NULL, TRUE);
             InvalidateRect(gameWindow, NULL, TRUE);
             return 0;
@@ -480,6 +480,8 @@ void updateGameboardPos() {
     RECT mainWindowRect;
     GetClientRect(mainWindow, &mainWindowRect);
     updateGameboard(mainWindowRect);
+    GameBoardRect gameboardRect = getGameboardRect();
+    MoveWindow(gameWindow, gameboardRect.left, gameboardRect.top, gameboardRect.width, gameboardRect.height, TRUE);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -542,8 +544,9 @@ void paintGameWindow() {
     GetClientRect(gameWindow, &gameWindowRect);
     drawGameField(gameWindowRect, hdc);
     drawWalls(hdc);
-    drawGridDebug(gameWindowRect, hdc);
+    //drawDebugGrid(gameWindowRect, hdc);
     drawSnake(hdc);
+    drawFruit(hdc);
     EndPaint(gameWindow, &ps);
 }
 
@@ -577,8 +580,8 @@ void drawSnake(HDC hdc) {
     SnakeNode* node = snake.node;
     HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, snakeBrush);
     while (node != NULL) {
-        RECT cell_bounds = getCellBoundingRect(node->x, node->y);
-        drawCircle(hdc, cell_bounds);
+        RECT node_bounds = getNodeBoundingRect(node->x, node->y);
+        drawCircle(hdc, node_bounds);
         node = node->nextNode;
     }
     SelectObject(hdc, oldBrush);
@@ -615,16 +618,51 @@ void drawWalls(HDC hdc) {
     HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, wallBrush);
     for (int i = 1; i <= GAMEGRIDCOLS; i++) {
         RECT cell_bounds = getCellBoundingRect(i, 1);
-        drawCircle(hdc, cell_bounds);
+        FillRect(hdc, &cell_bounds, wallBrush);
         cell_bounds = getCellBoundingRect(i, GAMEGRIDCOLS);
-        drawCircle(hdc, cell_bounds);
+        FillRect(hdc, &cell_bounds, wallBrush);
 
         cell_bounds = getCellBoundingRect(1, i);
-        drawCircle(hdc, cell_bounds);
+        FillRect(hdc, &cell_bounds, wallBrush);
         cell_bounds = getCellBoundingRect(GAMEGRIDCOLS, i);
-        drawCircle(hdc, cell_bounds);
+        FillRect(hdc, &cell_bounds, wallBrush);
     }
     SelectObject(hdc, oldBrush);
+}
+
+void drawFruit(HDC hdc) {
+    // --- Fruit body (orange) ---
+    HBRUSH orangeFruitBrush = CreateSolidBrush(RGB(255, 140, 0));  // orange color
+    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, orangeFruitBrush);
+
+    RECT fruit_bounds = getNodeBoundingRect(gameFruit.x, gameFruit.y);
+
+    Ellipse(hdc, fruit_bounds.left, fruit_bounds.top, fruit_bounds.right, fruit_bounds.bottom);
+
+    // --- Stem ---
+    HPEN stemPen = CreatePen(PS_SOLID, 4, RGB(60, 120, 40));
+    HPEN oldPen = (HPEN)SelectObject(hdc, stemPen);
+    int stem_x = ((fruit_bounds.right - fruit_bounds.left) / 2) + fruit_bounds.left;
+    int stem_y = fruit_bounds.top;
+    MoveToEx(hdc, stem_x, stem_y, NULL);
+    LineTo(hdc, stem_x + 10, stem_y + 10);
+
+    /*
+    // --- Leaf ---
+    HBRUSH leafBrush = CreateSolidBrush(RGB(40, 160, 60));
+    SelectObject(hdc, leafBrush);
+    POINT leaf[4] = {
+        {150, 80}, {170, 70}, {160, 60}, {150, 80}
+    };
+    Polygon(hdc, leaf, 4);
+
+    */
+    // --- Restore & cleanup ---
+    SelectObject(hdc, oldBrush);
+    SelectObject(hdc, oldPen);
+    DeleteObject(orangeFruitBrush);
+    //DeleteObject(leafBrush);
+    DeleteObject(stemPen);
 }
 
 /**
@@ -658,7 +696,7 @@ void drawCircle(HDC hdc, RECT cell_bounds) {
  * @see getGameBoardCellWidth()
  * @see getGameBoardCellHeight()
  */
-void drawGridDebug(RECT field, HDC hdc) {
+void drawDebugGrid(RECT field, HDC hdc) {
     HPEN hPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
     HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
 

@@ -108,6 +108,7 @@ typedef struct SnakeNode {
 typedef struct SnakeHead {
     SnakeNode* node;       /**< Pointer to the head node of the snake. */
     int movement_direction;/**< Current movement direction (e.g., up, down, left, right). */
+    int node_diameter;
 } SnakeHead;
 
 /**
@@ -163,6 +164,8 @@ int score;
  */
 int gameStatus;
 
+Coord gameFruit;
+
 /* ************************************************************ */
 
 // ******************** Function Prototypes ********************
@@ -173,6 +176,7 @@ void initializeGame();
 void initializeGameGrid();
 void initializeRand();
 void initializeSnake();
+void initializeCellAndNodeData();
 SnakeNode* createSnakeNode(SnakeNode config);
 /*   -------------   */
 
@@ -195,6 +199,7 @@ int getGameBoardCellHeight();
 GameBoardRect getGameboardRect();
 void updateGameboard(RECT mainWindowRect);
 RECT getCellBoundingRect(int x, int y);
+RECT getNodeBoundingRect(int x, int y);
 /*   -------------   */
 
 /*   --- Clean Up ---   */
@@ -230,6 +235,7 @@ void gameSetup() {
     initializeGame();
     initializeRand();
     initializeSnake();
+    generateFruit();
 }
 
 /**
@@ -311,7 +317,7 @@ void initializeRand() {
  * @see createSnakeNode()
  * @see logError()
  */
-void initializeSnake(void) {
+void initializeSnake() {
     snake.node = createSnakeNode(
         (SnakeNode)
         {
@@ -330,6 +336,31 @@ void initializeSnake(void) {
 
     gameBoard.grid[SNAKEHEADSTARTX][SNAKEHEADSTARTY].containsHead = 1;
     snake.movement_direction = DIRECTION_UP;
+}
+
+/**
+ * @brief Initializes derived cell and node size data based on the game board dimensions.
+ *
+ * Calculates the pixel width and height of each grid cell by dividing the game board's
+ * total width and height by the number of grid columns and rows, respectively.
+ * Also sets the snake's node diameter relative to the cell width.
+ *
+ * Logs an error if the board dimensions are not evenly divisible by the grid size,
+ * which would indicate a misconfigured game board layout.
+ *
+ * @note This function should be called after the game board rectangle and grid
+ *       dimensions have been initialized (typically during setup or resizing).
+ *
+ * @see updateGameboard()
+ * @see logError()
+ */
+void initializeCellAndNodeData() {
+    if ((GAMEBOARDWIDTH % GAMEGRIDCOLS || GAMEBOARDHEIGHT % GAMEGRIDROWS) != 0) {
+        logError(L"Error in function setupGridCellDimensions() of game.h.\n\t(gameBoard.rect.width \% gameBoard.grid_cols) != 0\n");
+    }
+    gameBoard.cell_width = (gameBoard.rect.width / gameBoard.grid_cols);
+    gameBoard.cell_height = (gameBoard.rect.height / gameBoard.grid_rows);
+    snake.node_diameter = gameBoard.cell_width * 2;
 }
 
 /**
@@ -425,8 +456,8 @@ void togglePause(void) {
  * @see generateCoordinate()
  */
 void generateFruit(void) {
-    Coord fruitCoordinate = generateCoordinate();
-    gameBoard.grid[fruitCoordinate.x][fruitCoordinate.y].containsFruit = 1;
+    gameFruit = generateCoordinate();
+    gameBoard.grid[gameFruit.x][gameFruit.y].containsFruit = 1;
 }
 
 /**
@@ -707,6 +738,15 @@ RECT getCellBoundingRect(int x, int y) {
     rect.left = rect.right - gameBoard.cell_width;
     rect.bottom = y * gameBoard.cell_height;
     rect.top = rect.bottom - gameBoard.cell_height;
+    return rect;
+}
+
+RECT getNodeBoundingRect(int x, int y) {
+    RECT rect;
+    rect.right = ((x + 1) * gameBoard.cell_width);
+    rect.left = rect.right - snake.node_diameter;
+    rect.bottom = ((y + 1) * gameBoard.cell_height);
+    rect.top = rect.bottom - snake.node_diameter;
     return rect;
 }
 
