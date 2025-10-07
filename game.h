@@ -1,14 +1,11 @@
 #ifndef GAME_H
 #define GAME_H
 
-
 #include <stdlib.h>
 #include <time.h>
 #include <windows.h>
-#include "error.h"
+#include "log.h"
 #include "window.h"
-
-
 
 // ******************** Macros ********************
 
@@ -37,69 +34,133 @@
 
 // ******************** Structs ********************
 
+/**
+ * @brief Defines the rectangular bounds and dimensions of the game board in pixels.
+ *
+ * Used to describe the visible or logical area where the game grid is drawn.
+ */
 typedef struct GameBoardRect {
-    int top;
-    int bottom;
-    int left;
-    int right;
-    int width;
-    int height;
+    int top;      /**< Top boundary (Y-coordinate). */
+    int bottom;   /**< Bottom boundary (Y-coordinate). */
+    int left;     /**< Left boundary (X-coordinate). */
+    int right;    /**< Right boundary (X-coordinate). */
+    int width;    /**< Total width of the game board in pixels. */
+    int height;   /**< Total height of the game board in pixels. */
 } GameBoardRect;
 
+/**
+ * @brief Represents a single cell within the game grid.
+ *
+ * Each cell stores its grid coordinates and flags that describe
+ * what occupies it (snake body, head, wall, or fruit).
+ */
 typedef struct GridCell {
-    int x;
-    int y;
-    int containsHead;
-    int containsSnake;
-    int containsWall;
-    int containsFruit;
+    int x;              /**< Row position of the cell in the grid. */
+    int y;              /**< Column position of the cell in the grid. */
+    int containsHead;   /**< 1 if the snake's head is in this cell, otherwise 0. */
+    int containsSnake;  /**< 1 if a snake body segment occupies this cell. */
+    int containsWall;   /**< 1 if this cell represents a wall or border. */
+    int containsFruit;  /**< 1 if a fruit is placed in this cell. */
 } GridCell;
+
+/**
+ * @brief A 2D array type representing the full game grid.
+ */
 typedef GridCell** GameBoardGrid;
 
+/**
+ * @brief Holds all data related to the game board, including the grid and its dimensions.
+ *
+ * Contains references to the grid structure, its size in rows and columns,
+ * and metadata needed for rendering (window handle, pixel cell size, etc.).
+ */
 typedef struct GameBoard {
-    HWND window;
-    GameBoardRect rect;
-    GameBoardGrid grid;
-    int grid_rows;
-    int grid_cols;
-    int cell_width;
-    int cell_height;
+    HWND window;            /**< Handle to the game window (Win32). */
+    GameBoardRect rect;     /**< Pixel boundaries of the game area. */
+    GameBoardGrid grid;     /**< 2D array representing all grid cells. */
+    int grid_rows;          /**< Number of grid rows. */
+    int grid_cols;          /**< Number of grid columns. */
+    int cell_width;         /**< Width of each cell in pixels. */
+    int cell_height;        /**< Height of each cell in pixels. */
 } GameBoard;
 
+/**
+ * @brief Represents a single node (segment) of the snake's body.
+ *
+ * Each node stores its current and previous positions, as well as
+ * pointers to adjacent nodes in the doubly linked list.
+ */
 typedef struct SnakeNode {
-    int x;
-    int y;
-    int prev_x;
-    int prev_y;
-    struct SnakeNode* prevNode;
-    struct SnakeNode* nextNode;
+    int x;                     /**< Current X-coordinate (column index). */
+    int y;                     /**< Current Y-coordinate (row index). */
+    int prev_x;                /**< Previous X-coordinate before movement. */
+    int prev_y;                /**< Previous Y-coordinate before movement. */
+    struct SnakeNode* prevNode;/**< Pointer to the previous node in the list. */
+    struct SnakeNode* nextNode;/**< Pointer to the next node in the list. */
 } SnakeNode;
 
+/**
+ * @brief Represents the snake's head and direction of movement.
+ *
+ * Contains a pointer to the head node of the snake's linked body
+ * and an integer indicating its current movement direction.
+ */
 typedef struct SnakeHead {
-    SnakeNode* node;
-    int movement_direction;
+    SnakeNode* node;       /**< Pointer to the head node of the snake. */
+    int movement_direction;/**< Current movement direction (e.g., up, down, left, right). */
 } SnakeHead;
 
+/**
+ * @brief Represents a simple 2D coordinate pair.
+ *
+ * Useful for passing positions without referencing full grid cells or nodes.
+ */
 typedef struct Coord {
-    int x;
-    int y;
+    int x; /**< X-coordinate value. */
+    int y; /**< Y-coordinate value. */
 } Coord;
-
-// ******************** Typedefs ********************
-
-
-
-
-
-
 
 /* ************************************************************ */
 
 // ******************** Global Variables ********************
 
+/**
+ * @brief Represents the current game board state.
+ *
+ * Holds the grid, its dimensions, and related information
+ * that defines the playable area and its contents.
+ *
+ * @see GameBoard
+ */
 GameBoard gameBoard;
+
+/**
+ * @brief Represents the snake's head and movement state.
+ *
+ * Stores the head position, direction, and links to the rest
+ * of the snake's body segments.
+ *
+ * @see SnakeHead
+ */
 SnakeHead snake;
+
+/**
+ * @brief Current score for the active game session.
+ *
+ * Tracks the player's score, which increases when the snake
+ * eats fruit. Reset to zero when a new game starts.
+ */
 int score;
+
+/**
+ * @brief Tracks the current status of the game.
+ *
+ * Indicates whether the game is running, paused, or over.
+ * Uses the predefined constants:
+ * - START_GAME
+ * - PAUSE_GAME
+ * - GAME_OVER
+ */
 int gameStatus;
 
 /* ************************************************************ */
@@ -145,19 +206,66 @@ void freeSnake();
 
 
 // ******************** Function Implementations ********************
-
 /*   --- Setup ---   */
+
+/**
+ * @brief Performs full game setup by initializing all core systems.
+ *
+ * This function serves as a wrapper that initializes all major components
+ * required before starting gameplay. It ensures the random number generator,
+ * game grid, and snake are properly set up.
+ *
+ * Specifically, it calls:
+ * - initializeGame() – sets up the game board and global state.
+ * - initializeRand() – seeds the random number generator.
+ * - initializeSnake() – creates and positions the initial snake.
+ *
+ * @note Must be called once before entering the main game loop.
+ *
+ * @see initializeGame()
+ * @see initializeRand()
+ * @see initializeSnake()
+ */
 void gameSetup() {
     initializeGame();
     initializeRand();
     initializeSnake();
 }
 
+/**
+ * @brief Initializes core game data and state.
+ *
+ * This function sets up the fundamental game components by:
+ * - Resetting the global score to zero.
+ * - Setting the initial game status to paused.
+ * - Allocating and initializing the game grid via initializeGameGrid().
+ *
+ * It prepares the game for its first run or for restarting after a previous session.
+ *
+ * @note Must be called before starting or resuming gameplay.
+ *
+ * @see initializeGameGrid()
+ */
 void initializeGame() {
     score = 0; gameStatus = PAUSE_GAME;
     initializeGameGrid();
 }
 
+/**
+ * @brief Allocates and initializes the game grid structure.
+ *
+ * This function dynamically allocates memory for the 2D game grid and
+ * initializes each cell with its coordinates and default state values.
+ * 
+ * - Borders (first and last rows/columns) are marked as walls.
+ * - All other cells are initialized as empty (no snake, no fruit).
+ * 
+ * The grid dimensions are taken from the GAMEGRIDROWS and GAMEGRIDCOLS macros,
+ * and the resulting grid is stored in the global `gameBoard` structure.
+ *
+ * @note This function must be called before any operations that access
+ *       or modify the game grid.
+ */
 void initializeGameGrid() {
     int rows = GAMEGRIDROWS, cols = GAMEGRIDCOLS;
     gameBoard.grid = (GameBoardGrid)malloc(sizeof(GridCell*) * rows);
@@ -176,11 +284,34 @@ void initializeGameGrid() {
     gameBoard.grid_cols = cols;
 }
 
+/**
+ * @brief Initializes the random number generator with the current time.
+ *
+ * This function seeds the standard library's pseudo-random number generator
+ * using the current system time, ensuring that calls to rand() produce a
+ * different sequence of values each time the program runs.
+ */
 void initializeRand() {
     srand((unsigned int)time(NULL));
 }
 
-void initializeSnake() {
+/**
+ * @brief Initializes the snake at its starting position on the game board.
+ *
+ * This function creates the initial snake head node at the center of the grid,
+ * sets its movement direction to up, and marks the corresponding grid cell as
+ * containing the snake head. It prepares the snake for gameplay immediately
+ * after the board has been initialized.
+ *
+ * If memory allocation fails during snake node creation, an error message is
+ * logged via logError().
+ *
+ * @note Must be called after initializeGameGrid() to ensure the grid exists.
+ *
+ * @see createSnakeNode()
+ * @see logError()
+ */
+void initializeSnake(void) {
     snake.node = createSnakeNode(
         (SnakeNode)
         {
@@ -192,83 +323,167 @@ void initializeSnake() {
             .nextNode = NULL
         }
     );
+
     if (snake.node == NULL) {
         logError(L"Error in function setupSnakeHead() of game.h.\n\tsnake.node == NULL. Malloc failed in createSnakeNode().\n");
     }
+
     gameBoard.grid[SNAKEHEADSTARTX][SNAKEHEADSTARTY].containsHead = 1;
     snake.movement_direction = DIRECTION_UP;
 }
 
+/**
+ * @brief Allocates and initializes a new SnakeNode based on a configuration template.
+ *
+ * Dynamically allocates memory for a new SnakeNode and copies position and linkage
+ * data from the provided configuration struct. This function is used both to
+ * create the snake's head and to append new body segments during gameplay.
+ *
+ * If memory allocation fails, an error message is logged via logError().
+ *
+ * @param config A SnakeNode structure providing initial values for the new node.
+ * @return Pointer to the newly allocated SnakeNode, or NULL if allocation fails.
+ *
+ * @see SnakeNode
+ * @see logError()
+ */
 SnakeNode* createSnakeNode(SnakeNode config) {
-    SnakeNode* node = (struct SnakeNode*)malloc(sizeof(SnakeNode));
+    SnakeNode* node = (SnakeNode*)malloc(sizeof(SnakeNode));
     if (node == NULL) {
         logError(L"Error in function createSnakeNode() of game.h.\n\tnode == NULL. Malloc failed.\n");
     }
+
     node->x = config.x;
     node->y = config.y;
     node->prev_x = config.prev_x;
     node->prev_y = config.prev_y;
     node->nextNode = config.nextNode;
     node->prevNode = config.prevNode;
+
     return node;
 }
 
 
+
 /*   --- Game Loop ---   */
-void generateNextFrame() {
-    wchar_t errMsg[256];
-    swprintf(errMsg, 256, L"running generateNextFrame()...\n");
-    logDebugMessage(errMsg);
+
+/**
+ * @brief Advances the game state by one frame.
+ *
+ * This function performs one iteration of the main game loop. It moves the snake, 
+ * checks for collisions, and responds
+ * to game events accordingly:
+ * - If a collision occurs, the game ends.
+ * - If the snake eats a fruit, the snake grows and a new fruit is generated.
+ *
+ * @note Should be called repeatedly during the active game loop while
+ *       gameStatus == START_GAME.
+ *
+ * @see moveSnake()
+ * @see collisionCheck()
+ * @see eatFruit()
+ */
+void generateNextFrame(void) {
     moveSnake();
     int collisionVal = collisionCheck();
+
     switch (collisionVal) {
         case COLLISION:
-        {
             gameStatus = GAME_OVER;
             break;
-        }
+
         case EATS_FRUIT:
-        {
             eatFruit();
             break;
-        }
     }
 }
 
-void togglePause() {
+/**
+ * @brief Toggles the game's pause state.
+ *
+ * Switches the global gameStatus variable between paused and running modes.
+ * If the game is currently paused, it resumes gameplay; otherwise, it pauses.
+ *
+ * @see gameStatus
+ */
+void togglePause(void) {
     if (gameStatus == PAUSE_GAME) {
         gameStatus = START_GAME;
         return;
-    }
-    else {
+    } else {
         gameStatus = PAUSE_GAME;
     }
 }
 
-void generateFruit() {
+/**
+ * @brief Generates a new fruit at a random coordinate on the grid.
+ *
+ * Selects a random coordinate using generateCoordinate() and marks that
+ * position as containing a fruit. Ensures that the new fruit does not spawn
+ * at the snake's current position or at a wall position.
+ *
+ * @see generateCoordinate()
+ */
+void generateFruit(void) {
     Coord fruitCoordinate = generateCoordinate();
     gameBoard.grid[fruitCoordinate.x][fruitCoordinate.y].containsFruit = 1;
 }
 
-Coord generateCoordinate() {
-    Coord coordinate = {.x = snake.node->x, .y = snake.node->y};
+/**
+ * @brief Generates a random grid coordinate that does not overlap with the snake's head or a wall.
+ *
+ * Produces a random (x, y) coordinate within the playable grid area,
+ * ensuring that the position does not coincide with the snake's current
+ * head location. Used for fruit placement.
+ *
+ * @return A Coord structure containing the generated grid position.
+ *
+ * @see Coord
+ */
+Coord generateCoordinate(void) {
+    Coord coordinate = { .x = snake.node->x, .y = snake.node->y };
+
     while (coordinate.x == snake.node->x) {
         coordinate.x = 1 + rand() % (GAMEGRIDCOLS - 1);
     }
     while (coordinate.y == snake.node->y) {
         coordinate.y = 1 + rand() % (GAMEGRIDROWS - 1);
     }
+
     return coordinate;
 }
 
-void eatFruit() {
+/**
+ * @brief Handles logic for when the snake eats a fruit.
+ *
+ * Removes the fruit from the current cell, increases the player's score,
+ * extends the snake's length by one segment, and generates a new fruit at a
+ * random location.
+ *
+ * @see incrementScore()
+ * @see extendSnake()
+ * @see generateFruit()
+ */
+void eatFruit(void) {
     gameBoard.grid[snake.node->x][snake.node->y].containsFruit = 0;
     incrementScore();
     extendSnake();
     generateFruit();
 }
 
-void extendSnake() {
+/**
+ * @brief Extends the snake by adding a new segment to its tail.
+ *
+ * Traverses the snake's linked list to locate the current tail node,
+ * then allocates and attaches a new node behind it using the previous
+ * position of the tail segment as its initial coordinates.
+ *
+ * This function is typically called after the snake eats a fruit.
+ *
+ * @see createSnakeNode()
+ * @see eatFruit()
+ */
+void extendSnake(void) {
     SnakeNode* ptr = snake.node;
     while (ptr->nextNode != NULL) {
         ptr = ptr->nextNode;
@@ -286,47 +501,104 @@ void extendSnake() {
     );
 }
 
-void moveSnake() {
+/**
+ * @brief Updates the snake's position on the grid based on its current direction.
+ *
+ * Moves the snake head one cell in the current movement direction and updates
+ * all following body segments to occupy the position previously held by the
+ * segment ahead of them.
+ *
+ * This function also updates the game grid flags (`containsHead` and
+ * `containsSnake`) to reflect the snake's new position. If the snake head
+ * pointer is NULL, an error is logged.
+ *
+ * @note This function does not perform collision checks; call collisionCheck()
+ *       separately after movement.
+ *
+ * @see collisionCheck()
+ * @see changeSnakeDirection()
+ * @see logError()
+ */
+void moveSnake(void) {
     if (snake.node == NULL) {
         logError(L"Error in function moveSnake() of game.h.\n\tsnake.node == NULL\n");
     }
+
     SnakeNode* ptr = snake.node;
     ptr->prev_x = ptr->x;
     ptr->prev_y = ptr->y;
     gameBoard.grid[ptr->x][ptr->y].containsHead = 0;
+
     if (snake.movement_direction == DIRECTION_UP) {
         ptr->y -= 1;
-    }
-    else if (snake.movement_direction == DIRECTION_DOWN) {
+    } else if (snake.movement_direction == DIRECTION_DOWN) {
         ptr->y += 1;
-    }
-    else if (snake.movement_direction == DIRECTION_LEFT) {
+    } else if (snake.movement_direction == DIRECTION_LEFT) {
         ptr->x -= 1;
-    }
-    else if (snake.movement_direction == DIRECTION_RIGHT) {
+    } else if (snake.movement_direction == DIRECTION_RIGHT) {
         ptr->x += 1;
     }
+
     gameBoard.grid[ptr->x][ptr->y].containsHead = 1;
     ptr = ptr->nextNode;
+
     while (ptr != NULL) {
         ptr->prev_x = ptr->x;
         ptr->prev_y = ptr->y;
         gameBoard.grid[ptr->x][ptr->y].containsSnake = 0;
+
         ptr->x = ptr->prevNode->prev_x;
         ptr->y = ptr->prevNode->prev_y;
+
         gameBoard.grid[ptr->x][ptr->y].containsSnake = 1;
         ptr = ptr->nextNode;
     }
 }
 
+/**
+ * @brief Updates the snake's movement direction.
+ *
+ * Sets the snake's global movement direction to the specified value.
+ * The direction is expected to match one of the defined constants:
+ * - DIRECTION_UP
+ * - DIRECTION_DOWN
+ * - DIRECTION_LEFT
+ * - DIRECTION_RIGHT
+ *
+ * @param direction The new direction for the snake to move.
+ */
 void changeSnakeDirection(int direction) {
     snake.movement_direction = direction;
 }
 
+/**
+ * @brief Increases the player's score.
+ *
+ * Adds SCORE_INCREMENT to the global score variable.
+ * Typically called when the snake eats a fruit.
+ *
+ * @see score
+ * @see SCORE_INCREMENT
+ */
 void incrementScore() {
     score += SCORE_INCREMENT;
 }
 
+/**
+ * @brief Checks for collisions at the snake's current head position.
+ *
+ * Determines whether the snake's head has collided with a wall, its own body,
+ * or a fruit, and returns a corresponding collision code.
+ *
+ * @return One of the following integer codes:
+ * - COLLISION — if the snake hits a wall or its own body.
+ * - EATS_FRUIT — if the snake moves onto a fruit.
+ * - NO_COLLISION — if no collision occurs.
+ *
+ * @see moveSnake()
+ * @see generateNextFrame()
+ * @see logError()
+ */
 int collisionCheck() {
     if (snake.node == NULL) {
         logError(L"Error in function collisionCheck() of game.h.\n\tsnake.node == NULL\n");
@@ -341,14 +613,42 @@ int collisionCheck() {
 }
 
 /*   --- Utility ---   */
+
+/**
+ * @brief Retrieves the width of a single game grid cell, in pixels.
+ *
+ * Returns the current pixel width of each grid cell based on the
+ * game board's calculated dimensions.
+ *
+ * @return The width of one cell in pixels.
+ */
 int getGameBoardCellWidth() {
     return gameBoard.cell_width;
 }
 
+/**
+ * @brief Retrieves the height of a single game grid cell, in pixels.
+ *
+ * Returns the current pixel height of each grid cell based on the
+ * game board's calculated dimensions.
+ *
+ * @return The height of one cell in pixels.
+ */
 int getGameBoardCellHeight() {
     return gameBoard.cell_height;
 }
 
+/**
+ * @brief Returns a copy of the current game board rectangle.
+ *
+ * Produces a copy of the GameBoardRect structure describing the
+ * board's pixel boundaries and dimensions. This prevents direct
+ * modification of the global gameBoard data from outside code.
+ *
+ * @return A GameBoardRect struct containing the board's position and size.
+ *
+ * @see GameBoardRect
+ */
 GameBoardRect getGameboardRect() {
     GameBoardRect copy = {
         .bottom = gameBoard.rect.bottom,
@@ -361,6 +661,20 @@ GameBoardRect getGameboardRect() {
     return copy;
 }
 
+/**
+ * @brief Updates the game board's pixel dimensions and cell sizes.
+ *
+ * Calculates and centers the game board within the given main window
+ * rectangle. It then updates the board's bounding coordinates and computes
+ * the pixel width and height of each grid cell.
+ *
+ * Logs an error if the game board dimensions are not evenly divisible by
+ * the number of grid rows or columns.
+ *
+ * @param mainWindowRect The RECT structure representing the dimensions of the main window.
+ *
+ * @see logError()
+ */
 void updateGameboard(RECT mainWindowRect) {
     int mainWindowWidth = mainWindowRect.right - mainWindowRect.left;
     int mainWindowHeight = mainWindowRect.bottom - mainWindowRect.top;
@@ -376,6 +690,17 @@ void updateGameboard(RECT mainWindowRect) {
     gameBoard.cell_height = (gameBoard.rect.height / gameBoard.grid_rows);
 }
 
+/**
+ * @brief Calculates the pixel boundaries of a specific grid cell.
+ *
+ * Given the grid coordinates (x, y), this function computes a RECT
+ * representing that cell's pixel boundaries relative to the top-left
+ * corner of the game board. This version assumes (0, 0) is the board origin.
+ *
+ * @param x The cell's horizontal grid index.
+ * @param y The cell's vertical grid index.
+ * @return A RECT structure defining the pixel boundaries of the cell.
+ */
 RECT getCellBoundingRect(int x, int y) {
     RECT rect;
     rect.right = x * gameBoard.cell_width;
@@ -385,17 +710,24 @@ RECT getCellBoundingRect(int x, int y) {
     return rect;
 }
 
-RECT getCellBoundingRect2(int x, int y) {
-    RECT rect;
-    rect.right = gameBoard.rect.left + (x * gameBoard.cell_width);
-    rect.left = gameBoard.rect.left + (rect.right - gameBoard.cell_width);
-    rect.bottom = gameBoard.rect.top + (y * gameBoard.cell_height);
-    rect.top = gameBoard.rect.top + (rect.bottom - gameBoard.cell_height);
-    return rect;
-}
 /*   -------------   */
 
 /*   --- Clean Up ---   */
+
+/**
+ * @brief Frees all dynamically allocated game data.
+ *
+ * Deallocates memory for the game grid and releases all associated
+ * resources used by the snake. This function should be called when
+ * closing the game or restarting to ensure no memory leaks occur.
+ *
+ * Internally, it:
+ * - Frees each row of the game grid.
+ * - Frees the grid pointer itself.
+ * - Calls freeSnake() to deallocate the snake's linked list.
+ *
+ * @see freeSnake()
+ */
 void freeGameData() {
     for (int i = 0; i < GAMEGRIDROWS; i++) {
         free(gameBoard.grid[i]);
@@ -404,6 +736,18 @@ void freeGameData() {
     freeSnake();
 }
 
+/**
+ * @brief Frees all dynamically allocated snake nodes.
+ *
+ * Iterates through the snake's linked list, deallocating each node
+ * until the entire snake structure is released. After completion,
+ * the global snake head pointer is set to NULL.
+ *
+ * Logs an error if the snake head pointer is unexpectedly NULL
+ * before freeing begins.
+ *
+ * @see logError()
+ */
 void freeSnake() {
     if (snake.node == NULL) {
         logError(L"Error in function freeSnake() of game.h.\n\tsnake.node == NULL\n");
@@ -418,9 +762,6 @@ void freeSnake() {
     snake.node = NULL;
 }
 
-
 /* ************************************************************ */
 
-
 #endif
-

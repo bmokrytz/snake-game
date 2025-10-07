@@ -1,3 +1,22 @@
+/**
+ * @file window.h
+ * @author Brandon Mokrytzki
+ * @date 07-OCT-2025
+ * @brief Handles all drawing and graphical rendering for the Snake game.
+ *
+ * This module manages all GDI-based drawing routines including the game field,
+ * snake, fruit, and debug grid. It interfaces with the Windows API through
+ * device contexts (HDC) and brushes.
+ *
+ * Responsibilities:
+ * - Drawing the main window and game window contents
+ * - Rendering walls, snake segments, and background
+ * - Managing drawing brushes and debug overlays
+ *
+ * @see <windows.h>
+ * @see game.h
+ * @see snake.c
+ */
 #ifndef WINDOW_H
 #define WINDOW_H
 
@@ -6,10 +25,16 @@
 #define UNICODE
 #endif
 
+/*==============================================================================
+ *                           INCLUDES
+ *============================================================================*/
+
 #include <windows.h>
 #include "game.h"
 
-// ******************** Macros ********************
+/*==============================================================================
+ *                           MACROS
+ *============================================================================*/
 
 #ifndef WIN_MACROS
 #define WIN_MACROS
@@ -22,35 +47,131 @@
 #define COLOR_SNAKEGAME_WALL RGB(0, 0, 0)
 #endif
 
-/* ************************************************************ */
 
-// ******************** Global Variables ********************
 
+
+/*==============================================================================
+ *                           GLOBAL  VARIABLES
+ *============================================================================*/
+
+ /**
+ * @brief Handle to the main application window.
+ *
+ * Represents the top-level window that contains the game area and UI elements.
+ * Acts as the parent of the game window and is responsible for handling
+ * global events such as resizing, painting, and keyboard input.
+ *
+ * @see gameWindow
+ * @see windowSetup()
+ * @see SnakeWindowProc()
+ */
 HWND mainWindow;
+
+/**
+ * @brief Handle to the child window used for game rendering.
+ *
+ * Represents the area where all game graphics are drawn, including the grid,
+ * snake, and fruit. This window is embedded inside the main application window.
+ *
+ * @see mainWindow
+ * @see paintGameWindow()
+ */
 HWND gameWindow;
+
+/**
+ * @brief GDI brush used to paint the main window background.
+ *
+ * Fills the background of the main window behind the game area.
+ * Created in initializeBrushes() and deleted in deleteBrushes().
+ *
+ * @see initializeBrushes()
+ * @see deleteBrushes()
+ */
 HBRUSH backgroundBrush;
+
+/**
+ * @brief GDI brush used to paint the wall segments of the game board.
+ *
+ * Used by drawWalls() to render the border cells that enclose the playing field.
+ * Created in initializeBrushes() and deleted in deleteBrushes().
+ *
+ * @see drawWalls()
+ * @see initializeBrushes()
+ * @see deleteBrushes()
+ */
 HBRUSH wallBrush;
+
+/**
+ * @brief GDI brush used to paint the game field background.
+ *
+ * Used by drawGameField() to fill the main playable area of the grid.
+ * Created in initializeBrushes() and deleted in deleteBrushes().
+ *
+ * @see drawGameField()
+ * @see initializeBrushes()
+ * @see deleteBrushes()
+ */
 HBRUSH fieldBrush;
+
+/**
+ * @brief GDI brush used to paint the snake.
+ *
+ * Applied in drawSnake() to render each snake segment as a filled circle.
+ * Created in initializeBrushes() and deleted in deleteBrushes().
+ *
+ * @see drawSnake()
+ * @see initializeBrushes()
+ * @see deleteBrushes()
+ */
 HBRUSH snakeBrush;
+
+/**
+ * @brief GDI brush used to paint fruit objects on the grid.
+ *
+ * Used in drawGameWindow() and drawSnake() to render fruit positions on
+ * the game board. Created in initializeBrushes() and deleted in deleteBrushes().
+ *
+ * @see drawGameWindow()
+ * @see initializeBrushes()
+ * @see deleteBrushes()
+ */
 HBRUSH fruitBrush;
 
-/* ************************************************************ */
 
-// ******************** Function Prototypes ********************
+/*==============================================================================
+ *                           FUNCTION  PROTOTYPES
+ *============================================================================*/
 
-/*   --- Setup ---   */
-void windowSetup(HINSTANCE hInstance); // - Wrapper
-void RegisterWindowClass (HINSTANCE hInstance, const wchar_t * className, WNDPROC windowProc);
+/** @defgroup WindowFunctions Window Management
+ *  @brief Functions that handle window creation, events, and cleanup.
+ *  @{
+ */
+
+/*----------------------------------------------------------------------------*/
+/*                             Window Initialization                          */
+/*----------------------------------------------------------------------------*/
+
+void windowSetup(HINSTANCE hInstance);
+void RegisterWindowClass(HINSTANCE hInstance, const wchar_t *className, WNDPROC windowProc);
 void createGameWindows(HINSTANCE hInstance);
-LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 void initializeBrushes();
-/*   -------------   */
 
-/*   --- Utility ---   */
+/*----------------------------------------------------------------------------*/
+/*                             Window Procedure                               */
+/*----------------------------------------------------------------------------*/
+
+LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
+/*----------------------------------------------------------------------------*/
+/*                             Window Utility                                 */
+/*----------------------------------------------------------------------------*/
+
 void updateGameboardPos();
-/*   -------------   */
 
-/*   --- Painting ---   */
+/*----------------------------------------------------------------------------*/
+/*                             Window Graphics                                */
+/*----------------------------------------------------------------------------*/
+
 void paintMainWindow();
 void paintUIElements();
 void paintGameWindow();
@@ -59,18 +180,42 @@ void drawGameField(RECT field, HDC hdc);
 void drawSnake(HDC hdc);
 void drawWalls(HDC hdc);
 void drawCircle(HDC hdc, RECT cell_bounds);
-/*   -------------   */
 
-/*   --- Clean Up ---   */
-void windowCleanUp(); //- Wrapper
-void deleteBrushes();
-/*   -------------   */
+/*----------------------------------------------------------------------------*/
+/*                              Window Cleanup                                */
+/*----------------------------------------------------------------------------*/
 
-/* ************************************************************ */
+void windowCleanUp(void);
+void deleteBrushes(void);
 
-// ******************** Function Implementations ********************
+/** @} */  // end of WindowFunctions
 
-/*   --- Setup ---   */
+/*==============================================================================
+ *                           FUNCTION  IMPLEMENTATIONS
+ *============================================================================*/
+
+/*----------------------------------------------------------------------------*/
+/*                              Setup                                         */
+/*----------------------------------------------------------------------------*/
+
+/**
+ * @brief Initializes all window-related resources for the Snake game.
+ *
+ * Registers the main and game window classes, creates both windows,
+ * and initializes rendering brushes. This function should be called
+ * once during program startup, before the main message loop begins.
+ *
+ * Internally, it:
+ * - Registers window classes for the main and game windows.
+ * - Creates the main application window and its embedded child window.
+ * - Initializes GDI brushes used for rendering.
+ *
+ * @param hInstance Handle to the current application instance (provided by WinMain).
+ *
+ * @see RegisterWindowClass()
+ * @see createGameWindows()
+ * @see initializeBrushes()
+ */
 void windowSetup(HINSTANCE hInstance) {
     RegisterWindowClass(hInstance, MAIN_WINDOW_CLASS, SnakeWindowProc);
     RegisterWindowClass(hInstance, GAME_WINDOW_CLASS, SnakeWindowProc);
@@ -78,6 +223,21 @@ void windowSetup(HINSTANCE hInstance) {
     initializeBrushes();
 }
 
+/**
+ * @brief Registers a custom window class with the Windows API.
+ *
+ * Defines the properties of a new window class, including its
+ * window procedure, instance handle, cursor, and class name.
+ * This function must be called before creating any windows
+ * using that class.
+ *
+ * @param hInstance  Handle to the current application instance.
+ * @param className  The unique name for the window class to register.
+ * @param windowProc The callback function that will handle window messages.
+ *
+ * @see SnakeWindowProc()
+ * @see createGameWindows()
+ */
 void RegisterWindowClass (HINSTANCE hInstance, const wchar_t * className, WNDPROC windowProc) {
     WNDCLASS wc = { };
 
@@ -89,6 +249,25 @@ void RegisterWindowClass (HINSTANCE hInstance, const wchar_t * className, WNDPRO
     RegisterClass(&wc);
 }
 
+/**
+ * @brief Creates the main application window and the embedded game window.
+ *
+ * This function creates two Win32 windows:
+ * - The **main window** (WS_OVERLAPPEDWINDOW), which contains the title bar
+ *   and acts as the parent container.
+ * - The **game window** (WS_CHILD | WS_VISIBLE), which displays the game grid.
+ *
+ * After window creation, the game board’s position is updated and aligned
+ * within the parent window’s client area.
+ *
+ * Logs an error if either window fails to create.
+ *
+ * @param hInstance Handle to the current application instance.
+ *
+ * @see logError()
+ * @see updateGameboardPos()
+ * @see getGameboardRect()
+ */
 void createGameWindows(HINSTANCE hInstance) {
     mainWindow = CreateWindowEx(
         0,                              // Optional window styles.
@@ -126,6 +305,37 @@ void createGameWindows(HINSTANCE hInstance) {
     }
 }
 
+/**
+ * @brief Main window procedure for handling Win32 messages.
+ *
+ * Processes all system and user-generated events for both the main window
+ * and the embedded game window. This function handles painting, keyboard
+ * input, resizing, and timer-based frame updates. It also performs cleanup
+ * on application shutdown.
+ *
+ * #### Message handling:
+ * - **WM_DESTROY** — Cleans up all resources and posts a quit message.
+ * - **WM_SETCURSOR** — Restores the default cursor behavior.
+ * - **WM_PAINT** — Draws the main or game window depending on which handle triggered the event.
+ * - **WM_KEYDOWN** — Handles player input for snake movement (WASD or arrow keys) and pause toggling.
+ * - **WM_TIMER** — Advances the game state and triggers redraws when the game is running.
+ * - **WM_SIZE** — Updates window and game board layout when the window is resized.
+ *
+ * @param hwnd   Handle to the window receiving the message.
+ * @param uMsg   The message identifier (e.g., WM_PAINT, WM_KEYDOWN, etc.).
+ * @param wParam Additional message information (message-dependent).
+ * @param lParam Additional message information (message-dependent).
+ *
+ * @return The result of message processing, as required by the Win32 API.
+ *
+ * @note Unhandled messages are passed to DefWindowProc() for default processing.
+ *
+ * @see paintMainWindow()
+ * @see paintGameWindow()
+ * @see generateNextFrame()
+ * @see updateGameboardPos()
+ * @see freeGameData()
+ */
 LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg)
@@ -223,6 +433,23 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
     return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
 
+/**
+ * @brief Initializes GDI brushes used for rendering the Snake game.
+ *
+ * Creates solid color brushes for all major game elements, including
+ * the background, walls, game field, snake, and fruit. These brushes
+ * are used by the paint functions to fill the appropriate regions.
+ *
+ * The colors are defined by constants such as COLOR_SNAKEGAME_BACKGROUND
+ * and COLOR_SNAKEGAME_SNAKE.
+ *
+ * @note Brushes created here should be released later in windowCleanUp()
+ *       to avoid GDI resource leaks.
+ *
+ * @see paintMainWindow()
+ * @see paintGameWindow()
+ * @see windowCleanUp()
+ */
 void initializeBrushes() {
     backgroundBrush = CreateSolidBrush(COLOR_SNAKEGAME_BACKGROUND);
     wallBrush = CreateSolidBrush(COLOR_SNAKEGAME_WALL);
@@ -230,17 +457,47 @@ void initializeBrushes() {
     snakeBrush = CreateSolidBrush(COLOR_SNAKEGAME_SNAKE);
     fruitBrush = CreateSolidBrush(COLOR_SNAKEGAME_FRUIT);
 }
-/*   -------------   */
 
-/*   --- Utility ---   */
+/*----------------------------------------------------------------------------*/
+/*                              Utility                                       */
+/*----------------------------------------------------------------------------*/
+
+/**
+ * @brief Updates the position and dimensions of the game board within the main window.
+ *
+ * Retrieves the client area of the main window and passes it to updateGameboard(),
+ * which recalculates the board's centered position and adjusts cell sizing based
+ * on the current window dimensions.
+ *
+ * This function is typically called:
+ * - After the main window is created (during setup).
+ * - When the window is resized (on WM_SIZE).
+ *
+ * @see updateGameboard()
+ * @see SnakeWindowProc()
+ */
 void updateGameboardPos() {
     RECT mainWindowRect;
     GetClientRect(mainWindow, &mainWindowRect);
     updateGameboard(mainWindowRect);
 }
-/*   -------------   */
 
-/*   --- Painting ---   */
+/*----------------------------------------------------------------------------*/
+/*                              Painting                                      */
+/*----------------------------------------------------------------------------*/
+
+/**
+ * @brief Handles painting of the main window background and title text.
+ *
+ * Fills the main window with the background brush and draws the centered
+ * "Snake Game" title above the game board area. This function is called
+ * when the main window receives a WM_PAINT message.
+ *
+ * @note Only paints static UI elements outside the playable game area.
+ *
+ * @see paintGameWindow()
+ * @see getGameboardRect()
+ */
 void paintMainWindow() {
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(mainWindow, &ps);
@@ -266,6 +523,18 @@ void paintMainWindow() {
     EndPaint(mainWindow, &ps);
 }
 
+/**
+ * @brief Handles painting of the game window and its visual elements.
+ *
+ * Draws the full game field, walls, snake, and optional debug grid.
+ * Called whenever the game window receives a WM_PAINT message or
+ * after a timer-driven frame update.
+ *
+ * @see drawGameField()
+ * @see drawWalls()
+ * @see drawSnake()
+ * @see drawGridDebug()
+ */
 void paintGameWindow() {
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(gameWindow, &ps);
@@ -278,10 +547,29 @@ void paintGameWindow() {
     EndPaint(gameWindow, &ps);
 }
 
+/**
+ * @brief Placeholder for drawing future UI elements.
+ *
+ * Currently unused. Reserved for potential future additions such as
+ * score display, pause indicators, or other overlay UI elements.
+ */
 void paintUIElements() {
     return;
 }
 
+/**
+ * @brief Draws the snake on the game board.
+ *
+ * Iterates through all snake nodes and renders each segment as a filled circle
+ * using the snake brush. The head is drawn first, followed by the body segments.
+ * Logs an error if the snake has not been initialized.
+ *
+ * @param hdc Handle to the device context used for drawing.
+ *
+ * @see getCellBoundingRect()
+ * @see drawCircle()
+ * @see logError()
+ */
 void drawSnake(HDC hdc) {
     if (snake.node == NULL) {
         logError(L"Error in function drawSnake(HDC hdc) of window.h.\n\tsnake.node == NULL\n");
@@ -296,10 +584,33 @@ void drawSnake(HDC hdc) {
     SelectObject(hdc, oldBrush);
 }
 
+/**
+ * @brief Draws the background field of the game area.
+ *
+ * Fills the specified rectangular region with the game field brush.
+ * Typically called before drawing the snake and walls.
+ *
+ * @param field Rectangle defining the game field boundaries.
+ * @param hdc   Handle to the device context used for drawing.
+ *
+ * @see paintGameWindow()
+ */
 void drawGameField(RECT field, HDC hdc) {
     FillRect(hdc, &field, fieldBrush);
 }
 
+/**
+ * @brief Draws the perimeter walls around the game grid.
+ *
+ * Renders circular wall segments along the outermost rows and columns
+ * of the grid using the wall brush. These represent the game boundaries
+ * that the snake cannot cross.
+ *
+ * @param hdc Handle to the device context used for drawing.
+ *
+ * @see drawCircle()
+ * @see getCellBoundingRect()
+ */
 void drawWalls(HDC hdc) {
     HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, wallBrush);
     for (int i = 1; i <= GAMEGRIDCOLS; i++) {
@@ -316,10 +627,37 @@ void drawWalls(HDC hdc) {
     SelectObject(hdc, oldBrush);
 }
 
+/**
+ * @brief Draws a filled circle within a specified rectangle.
+ *
+ * Uses the currently selected brush in the device context to render
+ * a filled ellipse corresponding to the given bounding rectangle.
+ *
+ * @param hdc         Handle to the device context used for drawing.
+ * @param cell_bounds Rectangle specifying the circle’s bounding box.
+ *
+ * @see drawSnake()
+ * @see drawWalls()
+ */
 void drawCircle(HDC hdc, RECT cell_bounds) {
     Ellipse(hdc, cell_bounds.left, cell_bounds.top, cell_bounds.right, cell_bounds.bottom);
 }
 
+/**
+ * @brief Draws grid lines over the game field for debugging purposes.
+ *
+ * Creates a temporary black pen and draws vertical and horizontal
+ * grid lines to visualize the cell layout. The pen is deleted after
+ * drawing to prevent GDI resource leaks.
+ *
+ * @param field Rectangle defining the visible game field area.
+ * @param hdc   Handle to the device context used for drawing.
+ *
+ * @note Intended for development/debugging only. Can be disabled in release builds.
+ *
+ * @see getGameBoardCellWidth()
+ * @see getGameBoardCellHeight()
+ */
 void drawGridDebug(RECT field, HDC hdc) {
     HPEN hPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
     HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
@@ -342,12 +680,37 @@ void drawGridDebug(RECT field, HDC hdc) {
     SelectObject(hdc, hOldPen);
     DeleteObject(hPen);
 }
-/*   -------------   */
 
-/*   --- Clean Up ---   */
+/*----------------------------------------------------------------------------*/
+/*                              Clean Up                                      */
+/*----------------------------------------------------------------------------*/
+
+/**
+ * @brief Releases all window-related graphical resources.
+ *
+ * Cleans up and deallocates all GDI objects (brushes) created during
+ * window initialization. This function should be called when the
+ * application exits or when the window is destroyed (WM_DESTROY).
+ *
+ * @see deleteBrushes()
+ * @see initializeBrushes()
+ */
 void windowCleanUp() {
     deleteBrushes();
 }
+
+/**
+ * @brief Deletes all GDI brushes used for rendering the Snake game.
+ *
+ * Calls DeleteObject() on every brush handle created by initializeBrushes(),
+ * including brushes for the background, walls, field, snake, and fruit.
+ * Ensures proper cleanup of GDI resources to prevent memory or handle leaks.
+ *
+ * @note Must be called before application exit or when the main window is destroyed.
+ *
+ * @see initializeBrushes()
+ * @see windowCleanUp()
+ */
 void deleteBrushes() {
     DeleteObject(backgroundBrush);
     DeleteObject(wallBrush);
@@ -355,10 +718,5 @@ void deleteBrushes() {
     DeleteObject(snakeBrush);
     DeleteObject(fruitBrush);
 }
-/*   -------------   */
-
-/* ************************************************************ */
-
-
 
 #endif
