@@ -40,11 +40,19 @@
 #define WIN_MACROS
 #define MAIN_WINDOW_CLASS L"MAIN_WIN"
 #define GAME_WINDOW_CLASS L"SNAKE_WIN"
-#define COLOR_SNAKEGAME_BACKGROUND RGB(33, 176, 164)
+
+#define COLOR_SNAKEGAME_UI_TEXT RGB(32, 42, 49)
+
+#define COLOR_SNAKEGAME_BACKGROUND RGB(32, 42, 49)
+
 #define COLOR_SNAKEGAME_GAMEFIELD RGB(255, 255, 255)
-#define COLOR_SNAKEGAME_SNAKE RGB(38, 191, 51)
-#define COLOR_SNAKEGAME_FRUIT RGB(235, 232, 52)
+
+#define COLOR_SNAKEGAME_SNAKE RGB(30, 200, 70)
+
+#define COLOR_SNAKEGAME_FRUIT RGB(255, 130, 0)
+
 #define COLOR_SNAKEGAME_WALL RGB(0, 0, 0)
+#define ID_DEBUG_BUTTON 10001
 #endif
 
 
@@ -65,7 +73,7 @@
  * @see windowSetup()
  * @see SnakeWindowProc()
  */
-HWND mainWindow;
+HWND mainWindow = NULL;
 
 /**
  * @brief Handle to the child window used for game rendering.
@@ -76,7 +84,7 @@ HWND mainWindow;
  * @see mainWindow
  * @see paintGameWindow()
  */
-HWND gameWindow;
+HWND gameWindow = NULL;
 
 /**
  * @brief GDI brush used to paint the main window background.
@@ -175,9 +183,10 @@ void updateGameboardPos();
 void paintMainWindow();
 void paintUIElements();
 void paintGameWindow();
-void drawGridDebug(RECT field, HDC hdc);
+void drawDebugGrid(RECT field, HDC hdc);
 void drawGameField(RECT field, HDC hdc);
 void drawSnake(HDC hdc);
+void drawFruit(HDC hdc);
 void drawWalls(HDC hdc);
 void drawCircle(HDC hdc, RECT cell_bounds);
 
@@ -285,6 +294,7 @@ void createGameWindows(HINSTANCE hInstance) {
         logError(L"Error in function createGameWindow() of window.h.\n\tmainWindow == NULL. Window creation failed.\n");
     }
     updateGameboardPos();
+    initializeCellAndNodeData();
     RECT parentRect;
     GetClientRect(mainWindow, &parentRect);
     GameBoardRect gameboardRect = getGameboardRect();
@@ -345,6 +355,41 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
             windowCleanUp();
             freeGameData();
             PostQuitMessage(0);
+            return 0;
+        }
+        case WM_CREATE:
+        {
+            if (mainWindow != NULL) return 0;
+            HWND hButton = CreateWindowW(
+            L"BUTTON",               // Predefined class name
+            L"DEBUG",            // Button text
+            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, // Styles
+            50, 50, 100, 30,         // Position and size (x, y, width, height)
+            hwnd,                    // Parent window handle
+            (HMENU)ID_DEBUG_BUTTON,       // Control ID
+            (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE),
+            NULL); 
+        }
+        case WM_COMMAND:
+        {
+            switch(LOWORD(wParam)) {
+                case ID_DEBUG_BUTTON:
+                {
+                    wchar_t debugMsg[500];
+                    int snake_x = snake.node->x; int snake_y = snake.node->y;
+                    int fruit_x = gameFruit.x; int fruit_y = gameFruit.y;
+                    swprintf(debugMsg, 500, L"---------------------\nSnake position: (%d, %d)\n", snake_x, snake_y);
+                    swprintf(debugMsg, 500, L"%sFruit position: (%d, %d)\n", debugMsg, gameFruit.x, gameFruit.y);
+                    swprintf(debugMsg, 500, L"%sSnake's node values: (%d, %d) - containsWall = ", debugMsg, snake_x, snake_y);
+                    swprintf(debugMsg, 500, L"%s%d - containsSnake = %d - containsFruit = %d", debugMsg, gameBoard.grid[snake_x][snake_y].containsWall, gameBoard.grid[snake_x][snake_y].containsFruit, gameBoard.grid[snake_x][snake_y].containsFruit);
+                    swprintf(debugMsg, 500, L"%s - containsHead = %d\n", debugMsg, gameBoard.grid[snake_x][snake_y].containsHead);
+                    swprintf(debugMsg, 500, L"%sFruit's node values: (%d, %d) - containsWall = ", debugMsg, fruit_x, fruit_y);
+                    swprintf(debugMsg, 500, L"%s%d - containsSnake = %d - containsFruit = %d", debugMsg, gameBoard.grid[fruit_x][fruit_y].containsWall, gameBoard.grid[fruit_x][fruit_y].containsFruit, gameBoard.grid[fruit_x][fruit_y].containsFruit);
+                    swprintf(debugMsg, 500, L"%s - containsHead = %d\n", debugMsg, gameBoard.grid[fruit_x][fruit_y].containsHead);
+                    swprintf(debugMsg, 500, L"%s---------------------\n\n", debugMsg);
+                    logDebugMessage(debugMsg);
+                }
+            }
             return 0;
         }
         case WM_SETCURSOR:
@@ -410,21 +455,23 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         case WM_TIMER:
         {
             if (gameStatus == START_GAME) {
-                generateNextFrame();
-                RECT gameField; GetClientRect(gameWindow, &gameField);
-                gameField.left = gameBoard.cell_width;
-                gameField.right = gameField.right - gameBoard.cell_width;
-                gameField.top = gameBoard.cell_height;
-                gameField.bottom = gameField.bottom - gameBoard.cell_height;
-                InvalidateRect(gameWindow, &gameField, TRUE);
+                if (generateNextFrame() == 1) {
+                    InvalidateRect(gameWindow, NULL, TRUE);
+                }
+                else {
+                    RECT gameField; GetClientRect(gameWindow, &gameField);
+                    gameField.left = gameBoard.cell_width;
+                    gameField.right = gameField.right - gameBoard.cell_width;
+                    gameField.top = gameBoard.cell_height;
+                    gameField.bottom = gameField.bottom - gameBoard.cell_height;
+                    InvalidateRect(gameWindow, &gameField, TRUE);
+                }
             }
             return 0;
         }
         case WM_SIZE:
         {
             updateGameboardPos();
-            GameBoardRect gameboardRect = getGameboardRect();
-            MoveWindow(gameWindow, gameboardRect.left, gameboardRect.top, gameboardRect.width, gameboardRect.height, TRUE);
             InvalidateRect(mainWindow, NULL, TRUE);
             InvalidateRect(gameWindow, NULL, TRUE);
             return 0;
@@ -480,6 +527,8 @@ void updateGameboardPos() {
     RECT mainWindowRect;
     GetClientRect(mainWindow, &mainWindowRect);
     updateGameboard(mainWindowRect);
+    GameBoardRect gameboardRect = getGameboardRect();
+    MoveWindow(gameWindow, gameboardRect.left, gameboardRect.top, gameboardRect.width, gameboardRect.height, TRUE);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -541,9 +590,10 @@ void paintGameWindow() {
     RECT gameWindowRect;
     GetClientRect(gameWindow, &gameWindowRect);
     drawGameField(gameWindowRect, hdc);
-    drawWalls(hdc);
-    drawGridDebug(gameWindowRect, hdc);
+    //drawDebugGrid(gameWindowRect, hdc);
     drawSnake(hdc);
+    drawWalls(hdc);
+    drawFruit(hdc);
     EndPaint(gameWindow, &ps);
 }
 
@@ -577,8 +627,8 @@ void drawSnake(HDC hdc) {
     SnakeNode* node = snake.node;
     HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, snakeBrush);
     while (node != NULL) {
-        RECT cell_bounds = getCellBoundingRect(node->x, node->y);
-        drawCircle(hdc, cell_bounds);
+        RECT node_bounds = getNodeBoundingRect(node->x, node->y);
+        drawCircle(hdc, node_bounds);
         node = node->nextNode;
     }
     SelectObject(hdc, oldBrush);
@@ -615,16 +665,51 @@ void drawWalls(HDC hdc) {
     HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, wallBrush);
     for (int i = 1; i <= GAMEGRIDCOLS; i++) {
         RECT cell_bounds = getCellBoundingRect(i, 1);
-        drawCircle(hdc, cell_bounds);
+        FillRect(hdc, &cell_bounds, wallBrush);
         cell_bounds = getCellBoundingRect(i, GAMEGRIDCOLS);
-        drawCircle(hdc, cell_bounds);
+        FillRect(hdc, &cell_bounds, wallBrush);
 
         cell_bounds = getCellBoundingRect(1, i);
-        drawCircle(hdc, cell_bounds);
+        FillRect(hdc, &cell_bounds, wallBrush);
         cell_bounds = getCellBoundingRect(GAMEGRIDCOLS, i);
-        drawCircle(hdc, cell_bounds);
+        FillRect(hdc, &cell_bounds, wallBrush);
     }
     SelectObject(hdc, oldBrush);
+}
+
+void drawFruit(HDC hdc) {
+    // --- Fruit body (orange) ---
+    HBRUSH orangeFruitBrush = CreateSolidBrush(RGB(255, 140, 0));  // orange color
+    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, orangeFruitBrush);
+
+    RECT fruit_bounds = getNodeBoundingRect(gameFruit.x, gameFruit.y);
+
+    Ellipse(hdc, fruit_bounds.left, fruit_bounds.top, fruit_bounds.right, fruit_bounds.bottom);
+
+    // --- Stem ---
+    HPEN stemPen = CreatePen(PS_SOLID, 4, RGB(60, 120, 40));
+    HPEN oldPen = (HPEN)SelectObject(hdc, stemPen);
+    int stem_x = ((fruit_bounds.right - fruit_bounds.left) / 2) + fruit_bounds.left;
+    int stem_y = fruit_bounds.top;
+    MoveToEx(hdc, stem_x, stem_y, NULL);
+    LineTo(hdc, stem_x + 10, stem_y + 10);
+
+    /*
+    // --- Leaf ---
+    HBRUSH leafBrush = CreateSolidBrush(RGB(40, 160, 60));
+    SelectObject(hdc, leafBrush);
+    POINT leaf[4] = {
+        {150, 80}, {170, 70}, {160, 60}, {150, 80}
+    };
+    Polygon(hdc, leaf, 4);
+
+    */
+    // --- Restore & cleanup ---
+    SelectObject(hdc, oldBrush);
+    SelectObject(hdc, oldPen);
+    DeleteObject(orangeFruitBrush);
+    //DeleteObject(leafBrush);
+    DeleteObject(stemPen);
 }
 
 /**
@@ -658,7 +743,7 @@ void drawCircle(HDC hdc, RECT cell_bounds) {
  * @see getGameBoardCellWidth()
  * @see getGameBoardCellHeight()
  */
-void drawGridDebug(RECT field, HDC hdc) {
+void drawDebugGrid(RECT field, HDC hdc) {
     HPEN hPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
     HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
 

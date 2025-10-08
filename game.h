@@ -108,6 +108,7 @@ typedef struct SnakeNode {
 typedef struct SnakeHead {
     SnakeNode* node;       /**< Pointer to the head node of the snake. */
     int movement_direction;/**< Current movement direction (e.g., up, down, left, right). */
+    int node_diameter;
 } SnakeHead;
 
 /**
@@ -163,6 +164,8 @@ int score;
  */
 int gameStatus;
 
+Coord gameFruit;
+
 /* ************************************************************ */
 
 // ******************** Function Prototypes ********************
@@ -173,15 +176,16 @@ void initializeGame();
 void initializeGameGrid();
 void initializeRand();
 void initializeSnake();
+void initializeCellAndNodeData();
 SnakeNode* createSnakeNode(SnakeNode config);
 /*   -------------   */
 
 /*   --- Game Loop ---   */
-void generateNextFrame(); // - Wrapper
+int generateNextFrame(); // - Wrapper
 void togglePause();
 void generateFruit();
 Coord generateCoordinate();
-void eatFruit();
+int eatFruit();
 void extendSnake();
 void moveSnake();
 void changeSnakeDirection(int direction);
@@ -195,6 +199,7 @@ int getGameBoardCellHeight();
 GameBoardRect getGameboardRect();
 void updateGameboard(RECT mainWindowRect);
 RECT getCellBoundingRect(int x, int y);
+RECT getNodeBoundingRect(int x, int y);
 /*   -------------   */
 
 /*   --- Clean Up ---   */
@@ -230,6 +235,7 @@ void gameSetup() {
     initializeGame();
     initializeRand();
     initializeSnake();
+    generateFruit();
 }
 
 /**
@@ -311,7 +317,7 @@ void initializeRand() {
  * @see createSnakeNode()
  * @see logError()
  */
-void initializeSnake(void) {
+void initializeSnake() {
     snake.node = createSnakeNode(
         (SnakeNode)
         {
@@ -330,6 +336,31 @@ void initializeSnake(void) {
 
     gameBoard.grid[SNAKEHEADSTARTX][SNAKEHEADSTARTY].containsHead = 1;
     snake.movement_direction = DIRECTION_UP;
+}
+
+/**
+ * @brief Initializes derived cell and node size data based on the game board dimensions.
+ *
+ * Calculates the pixel width and height of each grid cell by dividing the game board's
+ * total width and height by the number of grid columns and rows, respectively.
+ * Also sets the snake's node diameter relative to the cell width.
+ *
+ * Logs an error if the board dimensions are not evenly divisible by the grid size,
+ * which would indicate a misconfigured game board layout.
+ *
+ * @note This function should be called after the game board rectangle and grid
+ *       dimensions have been initialized (typically during setup or resizing).
+ *
+ * @see updateGameboard()
+ * @see logError()
+ */
+void initializeCellAndNodeData() {
+    if ((GAMEBOARDWIDTH % GAMEGRIDCOLS || GAMEBOARDHEIGHT % GAMEGRIDROWS) != 0) {
+        logError(L"Error in function setupGridCellDimensions() of game.h.\n\t(gameBoard.rect.width \% gameBoard.grid_cols) != 0\n");
+    }
+    gameBoard.cell_width = (gameBoard.rect.width / gameBoard.grid_cols);
+    gameBoard.cell_height = (gameBoard.rect.height / gameBoard.grid_rows);
+    snake.node_diameter = gameBoard.cell_width * 2;
 }
 
 /**
@@ -368,22 +399,23 @@ SnakeNode* createSnakeNode(SnakeNode config) {
 /*   --- Game Loop ---   */
 
 /**
- * @brief Advances the game state by one frame.
+ * @brief Advances the game state by one frame and handles movement, collisions, and fruit events.
  *
- * This function performs one iteration of the main game loop. It moves the snake, 
- * checks for collisions, and responds
- * to game events accordingly:
- * - If a collision occurs, the game ends.
- * - If the snake eats a fruit, the snake grows and a new fruit is generated.
+ * This function updates the game state for the next frame by moving the snake,
+ * checking for collisions, and processing fruit consumption. If the snake collides
+ * with itself or a wall, the game status is set to GAME_OVER. If the snake eats a fruit,
+ * the fruit logic is handled, and the function checks whether the eaten fruit was near
+ * the edge of the board.
  *
- * @note Should be called repeatedly during the active game loop while
- *       gameStatus == START_GAME.
+ * @return int
+ * Returns 1 if the fruit was eaten near the game board boundary (indicating walls may
+ * need to be repainted), otherwise returns 0.
  *
  * @see moveSnake()
  * @see collisionCheck()
  * @see eatFruit()
  */
-void generateNextFrame(void) {
+int generateNextFrame(void) {
     moveSnake();
     int collisionVal = collisionCheck();
 
@@ -393,9 +425,12 @@ void generateNextFrame(void) {
             break;
 
         case EATS_FRUIT:
-            eatFruit();
+            if (eatFruit() == 1) {
+                return 1;
+            }
             break;
     }
+    return 0;
 }
 
 /**
@@ -425,8 +460,8 @@ void togglePause(void) {
  * @see generateCoordinate()
  */
 void generateFruit(void) {
-    Coord fruitCoordinate = generateCoordinate();
-    gameBoard.grid[fruitCoordinate.x][fruitCoordinate.y].containsFruit = 1;
+    gameFruit = generateCoordinate();
+    gameBoard.grid[gameFruit.x][gameFruit.y].containsFruit = 1;
 }
 
 /**
@@ -454,21 +489,35 @@ Coord generateCoordinate(void) {
 }
 
 /**
- * @brief Handles logic for when the snake eats a fruit.
+ * @brief Handles logic for when the snake eats a fruit and signals wall repainting if needed.
  *
- * Removes the fruit from the current cell, increases the player's score,
+ * Removes the fruit from its current cell, increases the player's score,
  * extends the snake's length by one segment, and generates a new fruit at a
- * random location.
+ * random location. After processing, it checks whether the eaten fruit was
+ * positioned near the edges of the game board.
+ *
+ * If the fruit was close to the boundary, the function returns a signal so the
+ * caller can trigger a wall repaint (to ensure proper redraw after fruit overlap).
+ *
+ * @return int
+ * Returns 1 if the eaten fruit was within two cells of any game board edge
+ * (indicating walls should be repainted), otherwise returns 0.
  *
  * @see incrementScore()
  * @see extendSnake()
  * @see generateFruit()
  */
-void eatFruit(void) {
-    gameBoard.grid[snake.node->x][snake.node->y].containsFruit = 0;
+int eatFruit() {
+    int fruit_x = gameFruit.x;
+    int fruit_y = gameFruit.y;
+    gameBoard.grid[gameFruit.x][gameFruit.y].containsFruit = 0;
     incrementScore();
     extendSnake();
     generateFruit();
+    if (fruit_x <= 2 || fruit_x >= (GAMEGRIDCOLS - 2) || fruit_y <= 2 || fruit_y >= (GAMEGRIDROWS - 2)) {
+        return 1;
+    }
+    return 0;
 }
 
 /**
@@ -707,6 +756,15 @@ RECT getCellBoundingRect(int x, int y) {
     rect.left = rect.right - gameBoard.cell_width;
     rect.bottom = y * gameBoard.cell_height;
     rect.top = rect.bottom - gameBoard.cell_height;
+    return rect;
+}
+
+RECT getNodeBoundingRect(int x, int y) {
+    RECT rect;
+    rect.right = ((x + 1) * gameBoard.cell_width);
+    rect.left = rect.right - snake.node_diameter;
+    rect.bottom = ((y + 1) * gameBoard.cell_height);
+    rect.top = rect.bottom - snake.node_diameter;
     return rect;
 }
 
