@@ -40,11 +40,19 @@
 #define WIN_MACROS
 #define MAIN_WINDOW_CLASS L"MAIN_WIN"
 #define GAME_WINDOW_CLASS L"SNAKE_WIN"
-#define COLOR_SNAKEGAME_BACKGROUND RGB(33, 176, 164)
+
+#define COLOR_SNAKEGAME_UI_TEXT RGB(32, 42, 49)
+
+#define COLOR_SNAKEGAME_BACKGROUND RGB(32, 42, 49)
+
 #define COLOR_SNAKEGAME_GAMEFIELD RGB(255, 255, 255)
-#define COLOR_SNAKEGAME_SNAKE RGB(38, 191, 51)
-#define COLOR_SNAKEGAME_FRUIT RGB(235, 232, 52)
+
+#define COLOR_SNAKEGAME_SNAKE RGB(30, 200, 70)
+
+#define COLOR_SNAKEGAME_FRUIT RGB(255, 130, 0)
+
 #define COLOR_SNAKEGAME_WALL RGB(0, 0, 0)
+#define ID_DEBUG_BUTTON 10001
 #endif
 
 
@@ -65,7 +73,7 @@
  * @see windowSetup()
  * @see SnakeWindowProc()
  */
-HWND mainWindow;
+HWND mainWindow = NULL;
 
 /**
  * @brief Handle to the child window used for game rendering.
@@ -76,7 +84,7 @@ HWND mainWindow;
  * @see mainWindow
  * @see paintGameWindow()
  */
-HWND gameWindow;
+HWND gameWindow = NULL;
 
 /**
  * @brief GDI brush used to paint the main window background.
@@ -349,6 +357,41 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
             PostQuitMessage(0);
             return 0;
         }
+        case WM_CREATE:
+        {
+            if (mainWindow != NULL) return 0;
+            HWND hButton = CreateWindowW(
+            L"BUTTON",               // Predefined class name
+            L"DEBUG",            // Button text
+            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, // Styles
+            50, 50, 100, 30,         // Position and size (x, y, width, height)
+            hwnd,                    // Parent window handle
+            (HMENU)ID_DEBUG_BUTTON,       // Control ID
+            (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE),
+            NULL); 
+        }
+        case WM_COMMAND:
+        {
+            switch(LOWORD(wParam)) {
+                case ID_DEBUG_BUTTON:
+                {
+                    wchar_t debugMsg[500];
+                    int snake_x = snake.node->x; int snake_y = snake.node->y;
+                    int fruit_x = gameFruit.x; int fruit_y = gameFruit.y;
+                    swprintf(debugMsg, 500, L"---------------------\nSnake position: (%d, %d)\n", snake_x, snake_y);
+                    swprintf(debugMsg, 500, L"%sFruit position: (%d, %d)\n", debugMsg, gameFruit.x, gameFruit.y);
+                    swprintf(debugMsg, 500, L"%sSnake's node values: (%d, %d) - containsWall = ", debugMsg, snake_x, snake_y);
+                    swprintf(debugMsg, 500, L"%s%d - containsSnake = %d - containsFruit = %d", debugMsg, gameBoard.grid[snake_x][snake_y].containsWall, gameBoard.grid[snake_x][snake_y].containsFruit, gameBoard.grid[snake_x][snake_y].containsFruit);
+                    swprintf(debugMsg, 500, L"%s - containsHead = %d\n", debugMsg, gameBoard.grid[snake_x][snake_y].containsHead);
+                    swprintf(debugMsg, 500, L"%sFruit's node values: (%d, %d) - containsWall = ", debugMsg, fruit_x, fruit_y);
+                    swprintf(debugMsg, 500, L"%s%d - containsSnake = %d - containsFruit = %d", debugMsg, gameBoard.grid[fruit_x][fruit_y].containsWall, gameBoard.grid[fruit_x][fruit_y].containsFruit, gameBoard.grid[fruit_x][fruit_y].containsFruit);
+                    swprintf(debugMsg, 500, L"%s - containsHead = %d\n", debugMsg, gameBoard.grid[fruit_x][fruit_y].containsHead);
+                    swprintf(debugMsg, 500, L"%s---------------------\n\n", debugMsg);
+                    logDebugMessage(debugMsg);
+                }
+            }
+            return 0;
+        }
         case WM_SETCURSOR:
         {
             DefWindowProc(hwnd, uMsg, wParam, lParam);
@@ -412,13 +455,17 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         case WM_TIMER:
         {
             if (gameStatus == START_GAME) {
-                generateNextFrame();
-                RECT gameField; GetClientRect(gameWindow, &gameField);
-                gameField.left = gameBoard.cell_width;
-                gameField.right = gameField.right - gameBoard.cell_width;
-                gameField.top = gameBoard.cell_height;
-                gameField.bottom = gameField.bottom - gameBoard.cell_height;
-                InvalidateRect(gameWindow, &gameField, TRUE);
+                if (generateNextFrame() == 1) {
+                    InvalidateRect(gameWindow, NULL, TRUE);
+                }
+                else {
+                    RECT gameField; GetClientRect(gameWindow, &gameField);
+                    gameField.left = gameBoard.cell_width;
+                    gameField.right = gameField.right - gameBoard.cell_width;
+                    gameField.top = gameBoard.cell_height;
+                    gameField.bottom = gameField.bottom - gameBoard.cell_height;
+                    InvalidateRect(gameWindow, &gameField, TRUE);
+                }
             }
             return 0;
         }
@@ -543,9 +590,9 @@ void paintGameWindow() {
     RECT gameWindowRect;
     GetClientRect(gameWindow, &gameWindowRect);
     drawGameField(gameWindowRect, hdc);
-    drawWalls(hdc);
     //drawDebugGrid(gameWindowRect, hdc);
     drawSnake(hdc);
+    drawWalls(hdc);
     drawFruit(hdc);
     EndPaint(gameWindow, &ps);
 }

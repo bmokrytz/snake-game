@@ -181,11 +181,11 @@ SnakeNode* createSnakeNode(SnakeNode config);
 /*   -------------   */
 
 /*   --- Game Loop ---   */
-void generateNextFrame(); // - Wrapper
+int generateNextFrame(); // - Wrapper
 void togglePause();
 void generateFruit();
 Coord generateCoordinate();
-void eatFruit();
+int eatFruit();
 void extendSnake();
 void moveSnake();
 void changeSnakeDirection(int direction);
@@ -399,22 +399,23 @@ SnakeNode* createSnakeNode(SnakeNode config) {
 /*   --- Game Loop ---   */
 
 /**
- * @brief Advances the game state by one frame.
+ * @brief Advances the game state by one frame and handles movement, collisions, and fruit events.
  *
- * This function performs one iteration of the main game loop. It moves the snake, 
- * checks for collisions, and responds
- * to game events accordingly:
- * - If a collision occurs, the game ends.
- * - If the snake eats a fruit, the snake grows and a new fruit is generated.
+ * This function updates the game state for the next frame by moving the snake,
+ * checking for collisions, and processing fruit consumption. If the snake collides
+ * with itself or a wall, the game status is set to GAME_OVER. If the snake eats a fruit,
+ * the fruit logic is handled, and the function checks whether the eaten fruit was near
+ * the edge of the board.
  *
- * @note Should be called repeatedly during the active game loop while
- *       gameStatus == START_GAME.
+ * @return int
+ * Returns 1 if the fruit was eaten near the game board boundary (indicating walls may
+ * need to be repainted), otherwise returns 0.
  *
  * @see moveSnake()
  * @see collisionCheck()
  * @see eatFruit()
  */
-void generateNextFrame(void) {
+int generateNextFrame(void) {
     moveSnake();
     int collisionVal = collisionCheck();
 
@@ -424,9 +425,12 @@ void generateNextFrame(void) {
             break;
 
         case EATS_FRUIT:
-            eatFruit();
+            if (eatFruit() == 1) {
+                return 1;
+            }
             break;
     }
+    return 0;
 }
 
 /**
@@ -485,21 +489,35 @@ Coord generateCoordinate(void) {
 }
 
 /**
- * @brief Handles logic for when the snake eats a fruit.
+ * @brief Handles logic for when the snake eats a fruit and signals wall repainting if needed.
  *
- * Removes the fruit from the current cell, increases the player's score,
+ * Removes the fruit from its current cell, increases the player's score,
  * extends the snake's length by one segment, and generates a new fruit at a
- * random location.
+ * random location. After processing, it checks whether the eaten fruit was
+ * positioned near the edges of the game board.
+ *
+ * If the fruit was close to the boundary, the function returns a signal so the
+ * caller can trigger a wall repaint (to ensure proper redraw after fruit overlap).
+ *
+ * @return int
+ * Returns 1 if the eaten fruit was within two cells of any game board edge
+ * (indicating walls should be repainted), otherwise returns 0.
  *
  * @see incrementScore()
  * @see extendSnake()
  * @see generateFruit()
  */
-void eatFruit(void) {
-    gameBoard.grid[snake.node->x][snake.node->y].containsFruit = 0;
+int eatFruit() {
+    int fruit_x = gameFruit.x;
+    int fruit_y = gameFruit.y;
+    gameBoard.grid[gameFruit.x][gameFruit.y].containsFruit = 0;
     incrementScore();
     extendSnake();
     generateFruit();
+    if (fruit_x <= 2 || fruit_x >= (GAMEGRIDCOLS - 2) || fruit_y <= 2 || fruit_y >= (GAMEGRIDROWS - 2)) {
+        return 1;
+    }
+    return 0;
 }
 
 /**
