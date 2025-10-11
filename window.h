@@ -52,6 +52,11 @@
 #define DISPLAY_MODE_WINDOWED       9000
 #define DISPLAY_MODE_BORDERLESS     9001
 
+#define MAX_BUTTONS 32
+#define BUTTON_WIDTH_MAIN       100
+#define BUTTON_HEIGHT_MAIN      30
+#define BUTTON_WIDTH_MENU       130
+#define BUTTON_HEIGHT_MENU      30
 
 #define ID_DEBUG_1      10001
 #define ID_WINDOWED     10002
@@ -59,6 +64,12 @@
 #define ID_START_GAME   10004
 #endif
 
+
+
+typedef struct ButtonList {
+    HWND handles[MAX_BUTTONS];
+    int count;
+} ButtonList;
 
 typedef struct ButtonConfig {
     wchar_t label[30];
@@ -191,6 +202,11 @@ void updateWindowConfigs();
 void changeDisplayMode();
 void setBorderlessMode();
 void setWindowedMode();
+void switchWindows(HWND hwnd_current, HWND hwnd_next);
+void resizeMenuWindow();
+BOOL CALLBACK EnumChildProc(HWND hwndChild, LPARAM lParam);
+ButtonList getButtonList(HWND parent);
+
 
 /*----------------------------------------------------------------------------*/
 /*                             Window Graphics                                */
@@ -302,67 +318,6 @@ void setWindowConfigs() {
     logDebugMessage(L"Logging initial window config:\n");
     debugDropWindowedConfig();
     logDebugMessage(L"\n");
-}
-
-void updateWindowConfigs() {
-    HMONITOR hMonitor = MonitorFromWindow(windowHandler.mainWindow, MONITOR_DEFAULTTONEAREST);
-    MONITORINFO mInfo;
-    int screenWidth, screenHeight;
-    if (GetMonitorInfo(hMonitor, &mInfo)) {
-        screenWidth = mInfo.rcMonitor.right - mInfo.rcMonitor.left;
-        screenHeight = mInfo.rcMonitor.bottom - mInfo.rcMonitor.top;
-    }
-    else {
-        screenWidth  = GetSystemMetrics(SM_CXSCREEN);
-        screenHeight = GetSystemMetrics(SM_CYSCREEN);
-    }
-    if (windowHandler.displayMode == DISPLAY_MODE_WINDOWED) {
-        logDebugMessage(L"Here 1\n\n");
-        windowHandler.borderlessConfig.width = screenWidth;
-        windowHandler.borderlessConfig.height = screenHeight;
-        windowHandler.borderlessConfig.x = 0;
-        windowHandler.borderlessConfig.y = 0;
-    }
-    else if (windowHandler.displayMode == DISPLAY_MODE_BORDERLESS) {
-        logDebugMessage(L"Here 2\n\n");
-        RECT windowedRect; GetWindowRect(windowHandler.mainWindow, &windowedRect);
-        windowHandler.windowedConfig.width = windowedRect.right - windowedRect.left;
-        windowHandler.windowedConfig.height = windowedRect.bottom - windowedRect.top;
-        windowHandler.windowedConfig.x = windowedRect.left;
-        windowHandler.windowedConfig.y = windowedRect.top;
-    }
-}
-
-void changeDisplayMode() {
-    updateWindowConfigs();
-    if (windowHandler.displayMode == DISPLAY_MODE_BORDERLESS) {
-        setBorderlessMode();
-    }
-    else if (windowHandler.displayMode == DISPLAY_MODE_WINDOWED) {
-        setWindowedMode();
-    }
-}
-
-void setBorderlessMode() {
-    HWND hwndForeground = GetForegroundWindow();
-    SetWindowLong(windowHandler.mainWindow, GWL_STYLE, WS_POPUP | WS_VISIBLE);
-    SetWindowPos(windowHandler.mainWindow, HWND_TOP,
-        windowHandler.borderlessConfig.x, windowHandler.borderlessConfig.y,
-        windowHandler.borderlessConfig.width,
-        windowHandler.borderlessConfig.height,
-        SWP_NOZORDER | SWP_FRAMECHANGED);
-    SetFocus(hwndForeground);
-}
-
-void setWindowedMode() {
-    HWND hwndForeground = GetForegroundWindow();
-    SetWindowLong(windowHandler.mainWindow, GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_VISIBLE);
-    SetWindowPos(windowHandler.mainWindow, NULL, 
-        windowHandler.windowedConfig.x, windowHandler.windowedConfig.y, 
-        windowHandler.windowedConfig.width, windowHandler.windowedConfig.height,
-        SWP_NOZORDER | SWP_FRAMECHANGED);
-    ShowWindow(windowHandler.mainWindow, SW_RESTORE);
-    SetFocus(hwndForeground);
 }
 
 /**
@@ -529,8 +484,8 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                         .ID = ID_DEBUG_1,
                         .x = 20,
                         .y = 20,
-                        .width = 100,
-                        .height = 30
+                        .width = BUTTON_WIDTH_MAIN,
+                        .height = BUTTON_HEIGHT_MAIN
                     }
                 );
             }
@@ -543,8 +498,8 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                         .ID = ID_START_GAME,
                         .x = ((mainRect.right - mainRect.left) / 2) - 50,
                         .y = ((mainRect.bottom - mainRect.top) / 3),
-                        .width = 100,
-                        .height = 30
+                        .width = BUTTON_WIDTH_MENU,
+                        .height = BUTTON_HEIGHT_MENU
                     }
                 );
                 createButton(
@@ -554,8 +509,8 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                         .ID = ID_WINDOWED,
                         .x = ((mainRect.right - mainRect.left) / 2) - 50,
                         .y = ((mainRect.bottom - mainRect.top) / 3) + 60,
-                        .width = 100,
-                        .height = 30
+                        .width = BUTTON_WIDTH_MENU,
+                        .height = BUTTON_HEIGHT_MENU
                     }
                 );
                 createButton(
@@ -565,8 +520,8 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                         .ID = ID_BORDERLESS,
                         .x = ((mainRect.right - mainRect.left) / 2) - 50,
                         .y = ((mainRect.bottom - mainRect.top) / 3) + (60 * 2),
-                        .width = 100,
-                        .height = 30
+                        .width = BUTTON_WIDTH_MENU,
+                        .height = BUTTON_HEIGHT_MENU
                     }
                 );
             }
@@ -598,6 +553,10 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                     windowHandler.displayMode = DISPLAY_MODE_WINDOWED;
                     changeDisplayMode();
                     break;
+                }
+                case ID_START_GAME:
+                {
+                    switchWindows(windowHandler.menuWindow, windowHandler.gameWindow);
                 }
             }
             return 0;
@@ -686,11 +645,72 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         {
             updateGameboardPos();
             InvalidateRect(windowHandler.mainWindow, NULL, TRUE);
+            resizeMenuWindow();
+            InvalidateRect(windowHandler.menuWindow, NULL, TRUE);
             InvalidateRect(windowHandler.gameWindow, NULL, TRUE);
             return 0;
         }
     }
     return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
+
+/*
+void setWindowedMode() {
+    HWND hwndForeground = GetForegroundWindow();
+    SetWindowLong(windowHandler.mainWindow, GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_VISIBLE);
+    SetWindowPos(windowHandler.mainWindow, NULL, 
+        windowHandler.windowedConfig.x, windowHandler.windowedConfig.y, 
+        windowHandler.windowedConfig.width, windowHandler.windowedConfig.height,
+        SWP_NOZORDER | SWP_FRAMECHANGED);
+    ShowWindow(windowHandler.mainWindow, SW_RESTORE);
+    SetFocus(hwndForeground);
+}
+*/
+
+void resizeMenuWindow() {
+    RECT mainRect; GetClientRect(windowHandler.mainWindow, &mainRect);
+    int x, y, width, height;
+    x = mainRect.left; y = mainRect.top;
+    width = mainRect.right - mainRect.left;
+    height = mainRect.bottom - mainRect.top;
+    SetWindowPos(windowHandler.menuWindow, NULL, x, y, width, height, SWP_NOZORDER);
+    
+    logDebugMessage(L"\n\n\n");
+    ButtonList buttons = getButtonList(windowHandler.menuWindow);
+    wchar_t msg[32];
+    swprintf(msg, 32, L"Retrieved %d buttons.\n", buttons.count);
+    logDebugMessage(msg);
+    RECT menuRect; GetClientRect(windowHandler.menuWindow, &menuRect);
+    int buttonOffset = 0;
+    x = ((menuRect.right - menuRect.left) / 2) - (BUTTON_WIDTH_MENU / 2);
+    y = ((menuRect.bottom - menuRect.top) / 3);
+    
+    for (int i = 0; i < buttons.count; i++) {
+        SetWindowPos(buttons.handles[i], NULL, x, y + (buttonOffset * 60), 
+        BUTTON_WIDTH_MENU, BUTTON_HEIGHT_MENU, 
+        SWP_NOZORDER | SWP_FRAMECHANGED);
+        buttonOffset++;
+    }
+}
+// ((mainRect.bottom - mainRect.top) / 3)   + (buttonOffset * 60)
+BOOL CALLBACK EnumChildProc(HWND hwndChild, LPARAM lParam) {
+    wchar_t cls[32];
+    GetClassNameW(hwndChild, cls, 32);
+    ButtonList* list = (ButtonList*)lParam;
+    if (lstrcmpiW(cls, L"Button") == 0) {
+        logDebugMessage(L"HERE 1\n");\
+        list->handles[list->count] = hwndChild;
+        list->count++;
+    }
+    return TRUE;
+}
+
+
+ButtonList getButtonList(HWND parent) {
+    ButtonList list;
+    list.count = 0;
+    EnumChildWindows(parent, EnumChildProc, (LPARAM)&list);
+    return list;
 }
 
 /**
@@ -744,6 +764,73 @@ void updateGameboardPos() {
     MoveWindow(windowHandler.gameWindow, gameboardRect.left, gameboardRect.top, gameboardRect.width, gameboardRect.height, TRUE);
 }
 
+void updateWindowConfigs() {
+    HMONITOR hMonitor = MonitorFromWindow(windowHandler.mainWindow, MONITOR_DEFAULTTONEAREST);
+    MONITORINFO mInfo;
+    int screenWidth, screenHeight;
+    if (GetMonitorInfo(hMonitor, &mInfo)) {
+        screenWidth = mInfo.rcMonitor.right - mInfo.rcMonitor.left;
+        screenHeight = mInfo.rcMonitor.bottom - mInfo.rcMonitor.top;
+    }
+    else {
+        screenWidth  = GetSystemMetrics(SM_CXSCREEN);
+        screenHeight = GetSystemMetrics(SM_CYSCREEN);
+    }
+    if (windowHandler.displayMode == DISPLAY_MODE_WINDOWED) {
+        logDebugMessage(L"Here 1\n\n");
+        windowHandler.borderlessConfig.width = screenWidth;
+        windowHandler.borderlessConfig.height = screenHeight;
+        windowHandler.borderlessConfig.x = 0;
+        windowHandler.borderlessConfig.y = 0;
+    }
+    else if (windowHandler.displayMode == DISPLAY_MODE_BORDERLESS) {
+        logDebugMessage(L"Here 2\n\n");
+        RECT windowedRect; GetWindowRect(windowHandler.mainWindow, &windowedRect);
+        windowHandler.windowedConfig.width = windowedRect.right - windowedRect.left;
+        windowHandler.windowedConfig.height = windowedRect.bottom - windowedRect.top;
+        windowHandler.windowedConfig.x = windowedRect.left;
+        windowHandler.windowedConfig.y = windowedRect.top;
+    }
+}
+
+void changeDisplayMode() {
+    updateWindowConfigs();
+    if (windowHandler.displayMode == DISPLAY_MODE_BORDERLESS) {
+        setBorderlessMode();
+    }
+    else if (windowHandler.displayMode == DISPLAY_MODE_WINDOWED) {
+        setWindowedMode();
+    }
+}
+
+void setBorderlessMode() {
+    HWND hwndForeground = GetForegroundWindow();
+    SetWindowLong(windowHandler.mainWindow, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+    SetWindowPos(windowHandler.mainWindow, HWND_TOP,
+        windowHandler.borderlessConfig.x, windowHandler.borderlessConfig.y,
+        windowHandler.borderlessConfig.width,
+        windowHandler.borderlessConfig.height,
+        SWP_NOZORDER | SWP_FRAMECHANGED);
+    SetFocus(hwndForeground);
+}
+
+void setWindowedMode() {
+    HWND hwndForeground = GetForegroundWindow();
+    SetWindowLong(windowHandler.mainWindow, GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_VISIBLE);
+    SetWindowPos(windowHandler.mainWindow, NULL, 
+        windowHandler.windowedConfig.x, windowHandler.windowedConfig.y, 
+        windowHandler.windowedConfig.width, windowHandler.windowedConfig.height,
+        SWP_NOZORDER | SWP_FRAMECHANGED);
+    ShowWindow(windowHandler.mainWindow, SW_RESTORE);
+    SetFocus(hwndForeground);
+}
+
+void switchWindows(HWND hwnd_current, HWND hwnd_next) {
+    ShowWindow(hwnd_current, SW_HIDE);
+    ShowWindow(hwnd_next, SW_SHOW);
+    SetFocus(hwnd_next);
+}
+
 /*----------------------------------------------------------------------------*/
 /*                              Painting                                      */
 /*----------------------------------------------------------------------------*/
@@ -790,7 +877,7 @@ void paintMainWindow() {
 void paintMenuWindow() {
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(windowHandler.menuWindow, &ps);
-    FillRect(hdc, &ps.rcPaint, fruitBrush);
+    FillRect(hdc, &ps.rcPaint, backgroundBrush);
     EndPaint(windowHandler.menuWindow, &ps);
 }
 
