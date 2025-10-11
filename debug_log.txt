@@ -1,1 +1,132 @@
-Ready to build game window buttons!!
+Logging initial window config:
+Window Config:
+windowHandler.windowedConfig.x = 830. windowHandler.windowedConfig.y = 120.
+windowHandler.windowedConfig.width = 900. windowHandler.windowedConfig.height = 1200.
+
+
+Switching to Borderless mode...
+Window Config:
+windowHandler.windowedConfig.x = 830. windowHandler.windowedConfig.y = 120.
+windowHandler.windowedConfig.width = 900. windowHandler.windowedConfig.height = 1200.
+
+Here 2
+
+Switching to Windowed mode...
+Window Config:
+windowHandler.windowedConfig.x = 830. windowHandler.windowedConfig.y = 120.
+windowHandler.windowedConfig.width = 900. windowHandler.windowedConfig.height = 1200.
+
+Here 1
+
+Switching to Borderless mode...
+Window Config:
+windowHandler.windowedConfig.x = 830. windowHandler.windowedConfig.y = 120.
+windowHandler.windowedConfig.width = 900. windowHandler.windowedConfig.height = 1200.
+
+Here 2
+
+Switching to Windowed mode...
+Window Config:
+windowHandler.windowedConfig.x = 830. windowHandler.windowedConfig.y = 120.
+windowHandler.windowedConfig.width = 900. windowHandler.windowedConfig.height = 1200.
+
+Here 1
+
+Switching to Borderless mode...
+Window Config:
+windowHandler.windowedConfig.x = 830. windowHandler.windowedConfig.y = 120.
+windowHandler.windowedConfig.width = 900. windowHandler.windowedConfig.height = 1200.
+
+Here 2
+
+Switching to Windowed mode...
+Window Config:
+windowHandler.windowedConfig.x = 317. windowHandler.windowedConfig.y = 189.
+windowHandler.windowedConfig.width = 900. windowHandler.windowedConfig.height = 1200.
+
+Here 1
+
+Switching to Borderless mode...
+Window Config:
+windowHandler.windowedConfig.x = 317. windowHandler.windowedConfig.y = 189.
+windowHandler.windowedConfig.width = 900. windowHandler.windowedConfig.height = 1200.
+
+Here 2
+
+Switching to Windowed mode...
+Window Config:
+windowHandler.windowedConfig.x = 1186. windowHandler.windowedConfig.y = 120.
+windowHandler.windowedConfig.width = 900. windowHandler.windowedConfig.height = 1200.
+
+Here 1
+
+Switching to Borderless mode...
+Window Config:
+windowHandler.windowedConfig.x = 1186. windowHandler.windowedConfig.y = 120.
+windowHandler.windowedConfig.width = 900. windowHandler.windowedConfig.height = 1200.
+
+Here 2
+
+Switching to Windowed mode...
+Window Config:
+windowHandler.windowedConfig.x = 360. windowHandler.windowedConfig.y = 29.
+windowHandler.windowedConfig.width = 1670. windowHandler.windowedConfig.height = 1209.
+
+Here 1
+
+Switching to Borderless mode...
+Window Config:
+windowHandler.windowedConfig.x = 360. windowHandler.windowedConfig.y = 29.
+windowHandler.windowedConfig.width = 1670. windowHandler.windowedConfig.height = 1209.
+
+Here 2
+
+Switching to Windowed mode...
+Window Config:
+windowHandler.windowedConfig.x = -2202. windowHandler.windowedConfig.y = 22.
+windowHandler.windowedConfig.width = 1670. windowHandler.windowedConfig.height = 1209.
+
+Here 1
+
+Switching to Borderless mode...
+Window Config:
+windowHandler.windowedConfig.x = -2202. windowHandler.windowedConfig.y = 22.
+windowHandler.windowedConfig.width = 1670. windowHandler.windowedConfig.height = 1209.
+
+Here 2
+
+Switching to Windowed mode...
+Window Config:
+windowHandler.windowedConfig.x = -2202. windowHandler.windowedConfig.y = 22.
+windowHandler.windowedConfig.width = 1670. windowHandler.windowedConfig.height = 1209.
+
+Here 1
+
+Switching to Borderless mode...
+Window Config:
+windowHandler.windowedConfig.x = -2202. windowHandler.windowedConfig.y = 22.
+windowHandler.windowedConfig.width = 1670. windowHandler.windowedConfig.height = 1209.
+
+Here 2
+
+Switching to Windowed mode...
+Window Config:
+windowHandler.windowedConfig.x = -2202. windowHandler.windowedConfig.y = 22.
+windowHandler.windowedConfig.width = 1670. windowHandler.windowedConfig.height = 1209.
+
+Here 1
+
+Switching to Borderless mode...
+Window Config:
+windowHandler.windowedConfig.x = -2202. windowHandler.windowedConfig.y = 22.
+windowHandler.windowedConfig.width = 1670. windowHandler.windowedConfig.height = 1209.
+
+Here 2
+
+Switching to Windowed mode...
+Window Config:
+windowHandler.windowedConfig.x = -2202. windowHandler.windowedConfig.y = 22.
+windowHandler.windowedConfig.width = 1670. windowHandler.windowedConfig.height = 1209.
+
+Here 1
+

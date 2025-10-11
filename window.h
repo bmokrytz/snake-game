@@ -211,6 +211,8 @@ void drawCircle(HDC hdc, RECT cell_bounds);
 /*                              Window Cleanup                                */
 /*----------------------------------------------------------------------------*/
 
+void debugDropWindowedConfig();
+
 void windowCleanUp(void);
 void deleteBrushes(void);
 
@@ -243,7 +245,6 @@ void deleteBrushes(void);
  * @see initializeBrushes()
  */
 void windowSetup(HINSTANCE hInstance) {
-    windowHandler.mainWindow = NULL; windowHandler.menuWindow = NULL; windowHandler.gameWindow = NULL;
     setWindowConfigs();
     RegisterWindowClass(hInstance, MAIN_WINDOW_CLASS, SnakeWindowProc);
     RegisterWindowClass(hInstance, MENU_WINDOW_CLASS, SnakeWindowProc);
@@ -279,6 +280,8 @@ void RegisterWindowClass (HINSTANCE hInstance, const wchar_t * className, WNDPRO
 }
 
 void setWindowConfigs() {
+    windowHandler.mainWindow = NULL; windowHandler.menuWindow = NULL; windowHandler.gameWindow = NULL;
+    windowHandler.displayMode = DISPLAY_MODE_WINDOWED;
     int screenWidth  = GetSystemMetrics(SM_CXSCREEN);
     int screenHeight = GetSystemMetrics(SM_CYSCREEN);
 
@@ -296,6 +299,9 @@ void setWindowConfigs() {
     windowHandler.windowedConfig.height = windowHandler.minWindowedConfig.height;
     windowHandler.windowedConfig.x = windowHandler.minWindowedConfig.x;
     windowHandler.windowedConfig.y = windowHandler.minWindowedConfig.y;
+    logDebugMessage(L"Logging initial window config:\n");
+    debugDropWindowedConfig();
+    logDebugMessage(L"\n");
 }
 
 void updateWindowConfigs() {
@@ -311,12 +317,14 @@ void updateWindowConfigs() {
         screenHeight = GetSystemMetrics(SM_CYSCREEN);
     }
     if (windowHandler.displayMode == DISPLAY_MODE_WINDOWED) {
+        logDebugMessage(L"Here 1\n\n");
         windowHandler.borderlessConfig.width = screenWidth;
         windowHandler.borderlessConfig.height = screenHeight;
         windowHandler.borderlessConfig.x = 0;
         windowHandler.borderlessConfig.y = 0;
     }
     else if (windowHandler.displayMode == DISPLAY_MODE_BORDERLESS) {
+        logDebugMessage(L"Here 2\n\n");
         RECT windowedRect; GetWindowRect(windowHandler.mainWindow, &windowedRect);
         windowHandler.windowedConfig.width = windowedRect.right - windowedRect.left;
         windowHandler.windowedConfig.height = windowedRect.bottom - windowedRect.top;
@@ -352,7 +360,8 @@ void setWindowedMode() {
     SetWindowPos(windowHandler.mainWindow, NULL, 
         windowHandler.windowedConfig.x, windowHandler.windowedConfig.y, 
         windowHandler.windowedConfig.width, windowHandler.windowedConfig.height,
-        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+        SWP_NOZORDER | SWP_FRAMECHANGED);
+    ShowWindow(windowHandler.mainWindow, SW_RESTORE);
     SetFocus(hwndForeground);
 }
 
@@ -460,6 +469,14 @@ HWND createButton(ButtonConfig config) {
         NULL);
 }
 
+void debugDropWindowedConfig() {
+    wchar_t msg[700];
+    swprintf(msg, 700, L"Window Config:\n");
+    swprintf(msg, 700, L"%swindowHandler.windowedConfig.x = %d. windowHandler.windowedConfig.y = %d.\n", msg, windowHandler.windowedConfig.x, windowHandler.windowedConfig.y);
+    swprintf(msg, 700, L"%swindowHandler.windowedConfig.width = %d. windowHandler.windowedConfig.height = %d.\n\n", msg, windowHandler.windowedConfig.width, windowHandler.windowedConfig.height);
+    logDebugMessage(msg);
+}
+
 /**
  * @brief Main window procedure for handling Win32 messages.
  *
@@ -554,7 +571,6 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                 );
             }
             if (windowHandler.mainWindow != NULL && windowHandler.menuWindow != NULL && windowHandler.gameWindow == NULL) {
-                logDebugMessage(L"Ready to build game window buttons!!");
             }
         }
         case WM_COMMAND:
@@ -563,16 +579,25 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                 case ID_DEBUG_1:
                 {
                     logDebugMessage(L"This is debug button.\n");
+                    break;
                 }
                 case ID_BORDERLESS:
                 {
+                    if (windowHandler.displayMode == DISPLAY_MODE_BORDERLESS) return 0;
+                    logDebugMessage(L"Switching to Borderless mode...\n");
+                    debugDropWindowedConfig();
                     windowHandler.displayMode = DISPLAY_MODE_BORDERLESS;
                     changeDisplayMode();
+                    break;
                 }
                 case ID_WINDOWED:
                 {
+                    if (windowHandler.displayMode == DISPLAY_MODE_WINDOWED) return 0;
+                    logDebugMessage(L"Switching to Windowed mode...\n");
+                    debugDropWindowedConfig();
                     windowHandler.displayMode = DISPLAY_MODE_WINDOWED;
                     changeDisplayMode();
+                    break;
                 }
             }
             return 0;
