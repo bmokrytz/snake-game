@@ -50,8 +50,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     resetLogs();
     gameSetup();
     windowSetup(hInstance);
-    ShowWindow(mainWindow, nCmdShow);
-    SetTimer(mainWindow, 1, 45, NULL);
+    SetTimer(windowHandler.mainWindow, 1, 45, NULL);
     MSG msg = { };
     while (GetMessage(&msg, NULL, 0, 0) > 0)
     {
