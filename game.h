@@ -83,6 +83,7 @@ typedef struct GameBoard {
     int cell_width;         /**< Width of each cell in pixels. */
     int cell_height;        /**< Height of each cell in pixels. */
     int score;
+    Coord fruitLoc;
 } GameBoard;
 
 /**
@@ -198,6 +199,7 @@ RECT getNodeBoundingRect(int x, int y);
 /*   --- Clean Up ---   */
 void freeGameData(); // - Wrapper
 void freeSnake();
+void resetSnake();
 /*   -------------   */
 
 /* ************************************************************ */
@@ -453,8 +455,8 @@ void togglePause(void) {
  * @see generateCoordinate()
  */
 void generateFruit(void) {
-    gameFruit = generateCoordinate();
-    gameBoard.grid[gameFruit.x][gameFruit.y].containsFruit = 1;
+    gameBoard.fruitLoc = generateCoordinate();
+    gameBoard.grid[gameBoard.fruitLoc.x][gameBoard.fruitLoc.y].containsFruit = 1;
 }
 
 /**
@@ -811,6 +813,36 @@ void freeSnake() {
         freeNode = node;
     }
     snake.node = NULL;
+}
+
+void resetSnake() {
+    if (snake.node == NULL) {
+        logError(L"Error in function resetSnake() of game.h.\n\tsnake.node == NULL\n");
+    }
+    SnakeNode* node = snake.node->nextNode;
+    SnakeNode* freeNode = snake.node;
+    while(node != NULL) {
+        gameBoard.grid[node->x][node->y].containsFruit = 0;
+        gameBoard.grid[node->x][node->y].containsHead = 0;
+        gameBoard.grid[node->x][node->y].containsSnake = 0;
+        gameBoard.grid[node->x][node->y].containsWall = 0;
+        node = node->nextNode;
+        free(freeNode);
+        freeNode = node;
+    }
+    gameBoard.grid[snake.node->x][snake.node->y].containsFruit = 0;
+    gameBoard.grid[snake.node->x][snake.node->y].containsHead = 0;
+    gameBoard.grid[snake.node->x][snake.node->y].containsSnake = 0;
+    gameBoard.grid[snake.node->x][snake.node->y].containsWall = 0;
+
+    snake.node->x = SNAKEHEADSTARTX;
+    snake.node->y = SNAKEHEADSTARTY;
+    snake.node->prev_x = SNAKEHEADSTARTX;
+    snake.node->prev_y = SNAKEHEADSTARTY;
+    snake.node->prevNode = NULL;
+    snake.node->nextNode = NULL;
+    gameBoard.grid[SNAKEHEADSTARTX][SNAKEHEADSTARTY].containsHead = 1;
+    snake.movement_direction = DIRECTION_UP;
 }
 
 /* ************************************************************ */
