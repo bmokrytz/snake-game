@@ -22,24 +22,3 @@ HERE 1
 HERE 1
 HERE 1
 Retrieved 3 buttons.
-Switching to Borderless mode...
-Window Config:
-windowHandler.windowedConfig.x = 830. windowHandler.windowedConfig.y = 120.
-windowHandler.windowedConfig.width = 900. windowHandler.windowedConfig.height = 1200.
-
-Here 2
-
-
-
-
-HERE 1
-HERE 1
-HERE 1
-Retrieved 3 buttons.
-
-
-
-HERE 1
-HERE 1
-HERE 1
-Retrieved 3 buttons.

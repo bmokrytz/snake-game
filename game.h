@@ -82,6 +82,7 @@ typedef struct GameBoard {
     int grid_cols;          /**< Number of grid columns. */
     int cell_width;         /**< Width of each cell in pixels. */
     int cell_height;        /**< Height of each cell in pixels. */
+    int score;
 } GameBoard;
 
 /**
@@ -144,14 +145,6 @@ GameBoard gameBoard;
  * @see SnakeHead
  */
 SnakeHead snake;
-
-/**
- * @brief Current score for the active game session.
- *
- * Tracks the player's score, which increases when the snake
- * eats fruit. Reset to zero when a new game starts.
- */
-int score;
 
 /**
  * @brief Tracks the current status of the game.
@@ -253,7 +246,7 @@ void gameSetup() {
  * @see initializeGameGrid()
  */
 void initializeGame() {
-    score = 0; gameStatus = PAUSE_GAME;
+    gameBoard.score = 0; gameStatus = PAUSE_GAME;
     initializeGameGrid();
 }
 
@@ -630,7 +623,7 @@ void changeSnakeDirection(int direction) {
  * @see SCORE_INCREMENT
  */
 void incrementScore() {
-    score += SCORE_INCREMENT;
+    gameBoard.score += SCORE_INCREMENT;
 }
 
 /**
