@@ -46,25 +46,38 @@
 #define COLOR_SNAKEGAME_BACKGROUND RGB(32, 42, 49)
 #define COLOR_SNAKEGAME_GAMEFIELD RGB(245, 245, 245)
 #define COLOR_SNAKEGAME_SNAKE RGB(30, 200, 70)
-#define COLOR_SNAKEGAME_FRUIT RGB(255, 130, 0)
+#define COLOR_SNAKEGAME_FRUIT RGB(255, 140, 0)
 #define COLOR_SNAKEGAME_WALL RGB(0, 0, 0)
 
 #define DISPLAY_MODE_WINDOWED       9000
 #define DISPLAY_MODE_BORDERLESS     9001
 
 #define MAX_BUTTONS 32
-#define BUTTON_WIDTH_MAIN       100
-#define BUTTON_HEIGHT_MAIN      30
-#define BUTTON_WIDTH_MENU       130
-#define BUTTON_HEIGHT_MENU      30
+#define BUTTON_WIDTH_MAIN               100
+#define BUTTON_HEIGHT_MAIN              30
+#define BUTTON_WIDTH_MENU               130
+#define BUTTON_HEIGHT_MENU              30
+#define BUTTON_WIDTH_GAME_RESET         130
+#define BUTTON_HEIGHT_GAME_RESET        30
+
+#define BUTTON_WIDTH_GAME_CONTAINER     100
+#define BUTTON_HEIGHT_GAME_CONTAINER    30
 
 #define ID_DEBUG_1      10001
 #define ID_WINDOWED     10002
 #define ID_BORDERLESS   10003
 #define ID_START_GAME   10004
+#define ID_RESET_GAME   10005
 #endif
 
 
+typedef struct BrushHandler {
+    HBRUSH backgroundBrush;
+    HBRUSH wallBrush;
+    HBRUSH fieldBrush;
+    HBRUSH snakeBrush;
+    HBRUSH fruitBrush;
+} BrushHandler;
 
 typedef struct ButtonList {
     HWND handles[MAX_BUTTONS];
@@ -91,7 +104,9 @@ typedef struct WindowConfig {
 typedef struct WindowHandler {
     HWND mainWindow;
     HWND menuWindow;
-    HWND gameWindow;
+    HWND gameContainerWindow;
+    HWND gameDataDisplayWindow;
+    HWND gameFieldWindow;
     WindowConfig windowedConfig;
     WindowConfig borderlessConfig;
     WindowConfig minWindowedConfig;
@@ -104,64 +119,8 @@ typedef struct WindowHandler {
  *============================================================================*/
 
 WindowHandler windowHandler;
-/**
- * @brief GDI brush used to paint the main window background.
- *
- * Fills the background of the main window behind the game area.
- * Created in initializeBrushes() and deleted in deleteBrushes().
- *
- * @see initializeBrushes()
- * @see deleteBrushes()
- */
-HBRUSH backgroundBrush;
 
-/**
- * @brief GDI brush used to paint the wall segments of the game board.
- *
- * Used by drawWalls() to render the border cells that enclose the playing field.
- * Created in initializeBrushes() and deleted in deleteBrushes().
- *
- * @see drawWalls()
- * @see initializeBrushes()
- * @see deleteBrushes()
- */
-HBRUSH wallBrush;
-
-/**
- * @brief GDI brush used to paint the game field background.
- *
- * Used by drawGameField() to fill the main playable area of the grid.
- * Created in initializeBrushes() and deleted in deleteBrushes().
- *
- * @see drawGameField()
- * @see initializeBrushes()
- * @see deleteBrushes()
- */
-HBRUSH fieldBrush;
-
-/**
- * @brief GDI brush used to paint the snake.
- *
- * Applied in drawSnake() to render each snake segment as a filled circle.
- * Created in initializeBrushes() and deleted in deleteBrushes().
- *
- * @see drawSnake()
- * @see initializeBrushes()
- * @see deleteBrushes()
- */
-HBRUSH snakeBrush;
-
-/**
- * @brief GDI brush used to paint fruit objects on the grid.
- *
- * Used in drawGameWindow() and drawSnake() to render fruit positions on
- * the game board. Created in initializeBrushes() and deleted in deleteBrushes().
- *
- * @see drawGameWindow()
- * @see initializeBrushes()
- * @see deleteBrushes()
- */
-HBRUSH fruitBrush;
+BrushHandler brushHandler;
 
 
 /*==============================================================================
@@ -178,12 +137,16 @@ HBRUSH fruitBrush;
 /*----------------------------------------------------------------------------*/
 
 void windowSetup(HINSTANCE hInstance);
+void loadFonts();
 void RegisterWindowClass(HINSTANCE hInstance, const wchar_t *className, WNDPROC windowProc);
 void setWindowConfigs();
-void createGameWindows(HINSTANCE hInstance);
+void buildWindows(HINSTANCE hInstance);
 void buildMainWindow(HINSTANCE hInstance);
 void buildMenuWindow(HINSTANCE hInstance);
 void buildGameWindow(HINSTANCE hInstance);
+void buildGameContainerWindow(HINSTANCE hInstance);
+void buildGameDataDisplayWindow(HINSTANCE hInstance);
+void buildGameFieldWindow(HINSTANCE hInstance);
 HWND createButton(ButtonConfig config);
 void initializeBrushes();
 
@@ -204,6 +167,10 @@ void setBorderlessMode();
 void setWindowedMode();
 void switchWindows(HWND hwnd_current, HWND hwnd_next);
 void resizeMenuWindow();
+void resizeGameWindows();
+void resizeGameContainerWindow();
+void resizeGameDataDisplayWindow();
+void resizeGameFieldWindow();
 BOOL CALLBACK EnumChildProc(HWND hwndChild, LPARAM lParam);
 ButtonList getButtonList(HWND parent);
 
@@ -213,9 +180,12 @@ ButtonList getButtonList(HWND parent);
 /*----------------------------------------------------------------------------*/
 
 void paintMainWindow();
+void paintUIDisplay(HDC * hdc, RECT mainRect);
 void paintUIElements();
 void paintMenuWindow();
-void paintGameWindow();
+void paintGameContainerWindow();
+void PaintGameDataDisplayWindow();
+void paintGameFieldWindow();
 void drawDebugGrid(RECT field, HDC hdc);
 void drawGameField(RECT field, HDC hdc);
 void drawSnake(HDC hdc);
@@ -257,16 +227,45 @@ void deleteBrushes(void);
  * @param hInstance Handle to the current application instance (provided by WinMain).
  *
  * @see RegisterWindowClass()
- * @see createGameWindows()
+ * @see buildWindows()
  * @see initializeBrushes()
  */
 void windowSetup(HINSTANCE hInstance) {
+    loadFonts();
     setWindowConfigs();
     RegisterWindowClass(hInstance, MAIN_WINDOW_CLASS, SnakeWindowProc);
     RegisterWindowClass(hInstance, MENU_WINDOW_CLASS, SnakeWindowProc);
     RegisterWindowClass(hInstance, GAME_WINDOW_CLASS, SnakeWindowProc);
-    createGameWindows(hInstance);
+    buildWindows(hInstance);
     initializeBrushes();
+}
+
+void loadFonts() {
+    int fontsLoaded = AddFontResourceEx(L"assets\\font\\Jersey_25\\Jersey25-Regular.ttf", FR_PRIVATE, NULL);
+    if (fontsLoaded == 0) logError(L"Error loading font in windowSetup().\n\tFont loading failed.\n");
+    fontsLoaded = AddFontResourceEx(L"assets\\font\\DM_Serif_Text\\DMSerifText-Regular.ttf", FR_PRIVATE, NULL);
+    if (fontsLoaded == 0) logError(L"Error loading font in windowSetup().\n\tFont loading failed.\n");
+    fontsLoaded = AddFontResourceEx(L"assets\\font\\DM_Serif_Text\\DMSerifText-Italic.ttf", FR_PRIVATE, NULL);
+    if (fontsLoaded == 0) logError(L"Error loading font in windowSetup().\n\tFont loading failed.\n");
+    gameBoard.scoreFont = CreateFont(
+        64,                 // height (font size in logical units)
+        0,                  // width (0 = auto)
+        0,                  // escapement
+        0,                  // orientation
+        FW_NORMAL,          // weight (FW_BOLD, FW_LIGHT, etc.)
+        FALSE,              // italic
+        FALSE,              // underline
+        FALSE,              // strikeout
+        DEFAULT_CHARSET,
+        OUT_OUTLINE_PRECIS,
+        CLIP_DEFAULT_PRECIS,
+        CLEARTYPE_QUALITY,
+        VARIABLE_PITCH,
+        TEXT("Jersey 25")
+    );
+    if (gameBoard.scoreFont == NULL) {
+        logError(L"Error creating font in windowSetup().\n\tFont creation failed.\n");
+    }
 }
 
 /**
@@ -282,7 +281,7 @@ void windowSetup(HINSTANCE hInstance) {
  * @param windowProc The callback function that will handle window messages.
  *
  * @see SnakeWindowProc()
- * @see createGameWindows()
+ * @see buildWindows()
  */
 void RegisterWindowClass (HINSTANCE hInstance, const wchar_t * className, WNDPROC windowProc) {
     WNDCLASS wc = { };
@@ -296,8 +295,9 @@ void RegisterWindowClass (HINSTANCE hInstance, const wchar_t * className, WNDPRO
 }
 
 void setWindowConfigs() {
-    windowHandler.mainWindow = NULL; windowHandler.menuWindow = NULL; windowHandler.gameWindow = NULL;
-    windowHandler.displayMode = DISPLAY_MODE_WINDOWED;
+    windowHandler.mainWindow = NULL; windowHandler.menuWindow = NULL;
+    windowHandler.gameContainerWindow = NULL; windowHandler.gameFieldWindow = NULL;
+    windowHandler.displayMode = DISPLAY_MODE_BORDERLESS;
     int screenWidth  = GetSystemMetrics(SM_CXSCREEN);
     int screenHeight = GetSystemMetrics(SM_CYSCREEN);
 
@@ -315,9 +315,6 @@ void setWindowConfigs() {
     windowHandler.windowedConfig.height = windowHandler.minWindowedConfig.height;
     windowHandler.windowedConfig.x = windowHandler.minWindowedConfig.x;
     windowHandler.windowedConfig.y = windowHandler.minWindowedConfig.y;
-    logDebugMessage(L"Logging initial window config:\n");
-    debugDropWindowedConfig();
-    logDebugMessage(L"\n");
 }
 
 /**
@@ -339,37 +336,39 @@ void setWindowConfigs() {
  * @see updateGameboardPos()
  * @see getGameboardRect()
  */
-void createGameWindows(HINSTANCE hInstance) {
+void buildWindows(HINSTANCE hInstance) {
+
     buildMainWindow(hInstance);
     if (windowHandler.mainWindow == NULL) {
-        logError(L"Error in function createGameWindow() of window.h.\n\tmainWindow == NULL. Window creation failed.\n");
+        logError(L"Error in function buildWindows() of window.h.\n\tmainWindow == NULL. Window creation failed.\n");
     }
     updateGameboardPos();
     initializeCellAndNodeData();
-    ///*
     buildMenuWindow(hInstance);
-    if (windowHandler.mainWindow == NULL) {
-        logError(L"Error in function createGameWindow() of window.h.\n\tmenuWindow == NULL. Window creation failed.\n");
+    if (windowHandler.menuWindow == NULL) {
+        logError(L"Error in function buildWindows() of window.h.\n\tmenuWindow == NULL. Window creation failed.\n");
     }
-    //*/
     buildGameWindow(hInstance);
-    if (windowHandler.gameWindow == NULL) {
-        logError(L"Error in function createGameWindow() of window.h.\n\tgameWindow == NULL. Window creation failed.\n");
-    }
     ShowWindow(windowHandler.mainWindow, SW_SHOW);
     ShowWindow(windowHandler.menuWindow, SW_SHOW);
-    ShowWindow(windowHandler.gameWindow, SW_HIDE);
+    ShowWindow(windowHandler.gameContainerWindow, SW_HIDE);
+    ShowWindow(windowHandler.gameDataDisplayWindow, SW_HIDE);
+    ShowWindow(windowHandler.gameFieldWindow, SW_HIDE);
+    SetFocus(windowHandler.menuWindow);
 }
+
+
+
 
 void buildMainWindow(HINSTANCE hInstance) {
     windowHandler.mainWindow = CreateWindowEx(
         0,                              // Optional window styles.
         MAIN_WINDOW_CLASS,                      // Window class
         L"SNAKE",                       // Window text
-        WS_OVERLAPPEDWINDOW,            // Window style
+        WS_POPUP,            // Window style
         // Size and position
-        windowHandler.windowedConfig.x, windowHandler.windowedConfig.y, 
-        windowHandler.windowedConfig.width, windowHandler.windowedConfig.height,
+        windowHandler.borderlessConfig.x, windowHandler.borderlessConfig.y, 
+        windowHandler.borderlessConfig.width, windowHandler.borderlessConfig.height,
         NULL,       // Parent window    
         NULL,       // Menu
         hInstance,  // Instance handle
@@ -395,17 +394,77 @@ void buildMenuWindow(HINSTANCE hInstance) {
 }
 
 void buildGameWindow(HINSTANCE hInstance) {
-    RECT parentRect;
-    GetClientRect(windowHandler.mainWindow, &parentRect);
+    buildGameContainerWindow(hInstance);
+    if (windowHandler.gameContainerWindow == NULL) {
+        logError(L"Error in function buildWindows() of window.h.\n\tgameContainerWindow == NULL. Window creation failed.\n");
+    }
+    buildGameDataDisplayWindow(hInstance);
+    if (windowHandler.gameDataDisplayWindow == NULL) {
+        logError(L"Error in function buildWindows() of window.h.\n\tgameDataDisplayWindow == NULL. Window creation failed.\n");
+    }
+    buildGameFieldWindow(hInstance);
+    if (windowHandler.gameFieldWindow == NULL) {
+        logError(L"Error in function buildWindows() of window.h.\n\tgameWindow == NULL. Window creation failed.\n");
+    }
+}
+
+void buildGameContainerWindow(HINSTANCE hInstance) {
+    RECT mainRect; GetClientRect(windowHandler.mainWindow, &mainRect);
+    windowHandler.gameContainerWindow = CreateWindowEx(
+        0,                              // Optional window styles.
+        MENU_WINDOW_CLASS,                      // Window class
+        NULL,                       // Window text
+        WS_CHILD | WS_VISIBLE,            // Window style
+        // Size and position
+        mainRect.left, mainRect.top, 
+        mainRect.right - mainRect.left, mainRect.bottom - mainRect.top,
+        windowHandler.mainWindow,       // Parent window    
+        NULL,       // Menu
+        hInstance,  // Instance handle
+        NULL        // Additional application data
+        );
+}
+
+void buildGameDataDisplayWindow(HINSTANCE hInstance) {
+    RECT containerRect; GetClientRect(windowHandler.gameContainerWindow, &containerRect);
+    int containerWidth = containerRect.right - containerRect.left;
+    int containerHeight = containerRect.bottom - containerRect.top;
+    int windowMargin_horiz = containerWidth / 3;
+    int windowMargin_vert = 10;
+    int windowWidth = windowMargin_horiz;
+    int windowHeight = windowHeight / 8;
+    
+    RECT windowRect = {
+        .left = containerRect.left + windowMargin_horiz,
+        .top = containerRect.top + windowMargin_vert,
+        .right = (containerRect.left + windowMargin_horiz) + windowWidth,
+        .bottom = (containerRect.top + windowMargin_vert) + windowHeight
+    };
+
+    windowHandler.gameDataDisplayWindow = CreateWindowEx(
+        0,                              // Optional window styles.
+        GAME_WINDOW_CLASS,                      // Window class
+        NULL,                       // Window text
+        WS_CHILD | WS_VISIBLE,            // Window style
+        // Size and position
+        windowRect.left, windowRect.top, windowRect.right, windowRect.bottom,
+        windowHandler.gameContainerWindow,       // Parent window    
+        NULL,       // Menu
+        hInstance,  // Instance handle
+        NULL        // Additional application data
+        );
+}
+
+void buildGameFieldWindow(HINSTANCE hInstance) {
     GameBoardRect gameboardRect = getGameboardRect();
-    windowHandler.gameWindow = CreateWindowEx(
+    windowHandler.gameFieldWindow = CreateWindowEx(
         0,                              // Optional window styles.
         GAME_WINDOW_CLASS,                      // Window class
         NULL,                       // Window text
         WS_CHILD | WS_VISIBLE,            // Window style
         // Size and position
         gameboardRect.left, gameboardRect.top, gameboardRect.width, gameboardRect.height,
-        windowHandler.mainWindow,       // Parent window    
+        windowHandler.gameContainerWindow,       // Parent window    
         NULL,       // Menu
         hInstance,  // Instance handle
         NULL        // Additional application data
@@ -525,7 +584,19 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                     }
                 );
             }
-            if (windowHandler.mainWindow != NULL && windowHandler.menuWindow != NULL && windowHandler.gameWindow == NULL) {
+            if (windowHandler.mainWindow != NULL && windowHandler.menuWindow != NULL && windowHandler.gameContainerWindow == NULL) {
+                RECT mainRect; GetClientRect(windowHandler.mainWindow, &mainRect);
+                createButton(
+                    (ButtonConfig){
+                        .label = L"Reset Game",
+                        .parent = hwnd,
+                        .ID = ID_RESET_GAME,
+                        .x = mainRect.left + 40,
+                        .y = mainRect.top + 40,
+                        .width = BUTTON_WIDTH_GAME_RESET,
+                        .height = BUTTON_HEIGHT_GAME_RESET
+                    }
+                );
             }
         }
         case WM_COMMAND:
@@ -539,7 +610,6 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                 case ID_BORDERLESS:
                 {
                     if (windowHandler.displayMode == DISPLAY_MODE_BORDERLESS) return 0;
-                    logDebugMessage(L"Switching to Borderless mode...\n");
                     debugDropWindowedConfig();
                     windowHandler.displayMode = DISPLAY_MODE_BORDERLESS;
                     changeDisplayMode();
@@ -548,15 +618,24 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                 case ID_WINDOWED:
                 {
                     if (windowHandler.displayMode == DISPLAY_MODE_WINDOWED) return 0;
-                    logDebugMessage(L"Switching to Windowed mode...\n");
                     debugDropWindowedConfig();
                     windowHandler.displayMode = DISPLAY_MODE_WINDOWED;
                     changeDisplayMode();
                     break;
                 }
+                case ID_RESET_GAME:
+                {
+                    gameBoard.gameStatus = PAUSE_GAME;
+                    resetGame();
+                    InvalidateRect(windowHandler.gameContainerWindow, NULL, TRUE);
+                    InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
+                }
                 case ID_START_GAME:
                 {
-                    switchWindows(windowHandler.menuWindow, windowHandler.gameWindow);
+                    switchWindows(windowHandler.menuWindow, windowHandler.gameContainerWindow);
+                    ShowWindow(windowHandler.gameDataDisplayWindow, SW_SHOW);
+                    ShowWindow(windowHandler.gameFieldWindow, SW_SHOW);
+                    SetFocus(windowHandler.gameFieldWindow);
                 }
             }
             return 0;
@@ -575,14 +654,14 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
             else if (hwnd == windowHandler.menuWindow) {
                 paintMenuWindow();
             }
-            else if (hwnd == windowHandler.gameWindow) {
-                /*
-                RECT windowRect; GetClientRect(hwnd, &windowRect);
-                PAINTSTRUCT ps;
-                HDC hdc = BeginPaint(hwnd, &ps);
-                FillRect(hdc, &ps.rcPaint, fruitBrush);
-                */
-                paintGameWindow();
+            else if (hwnd == windowHandler.gameContainerWindow) {
+                paintGameContainerWindow();
+            }
+            else if (hwnd == windowHandler.gameDataDisplayWindow) {
+                PaintGameDataDisplayWindow();
+            }
+            else if (hwnd == windowHandler.gameFieldWindow) {
+                paintGameFieldWindow();
             }
             return 0;
         }
@@ -590,53 +669,48 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         {
             
             if (wParam == 'W' || wParam == 'w' || wParam == VK_UP) {
-                if (gameStatus != PAUSE_GAME) {
+                if (gameBoard.gameStatus != PAUSE_GAME) {
                     changeSnakeDirection(DIRECTION_UP);
                 }
             }
             else if (wParam == 'A' || wParam == 'a' || wParam == VK_LEFT) {
-                if (gameStatus != PAUSE_GAME) {
+                if (gameBoard.gameStatus != PAUSE_GAME) {
                     changeSnakeDirection(DIRECTION_LEFT);
                 }
             }
             else if (wParam == 'S' || wParam == 's' || wParam == VK_DOWN) {
-                if (gameStatus != PAUSE_GAME) {
+                if (gameBoard.gameStatus != PAUSE_GAME) {
                     changeSnakeDirection(DIRECTION_DOWN);
                 }
             }
             else if (wParam == 'D' || wParam == 'd' || wParam == VK_RIGHT) {
-                if (gameStatus != PAUSE_GAME) {
+                if (gameBoard.gameStatus != PAUSE_GAME) {
                     changeSnakeDirection(DIRECTION_RIGHT);
                 }
             }
             else if (wParam == VK_RETURN) {
-                /*
-                wchar_t errMsg[256];
-                if (hwnd == mainWindow) {
-                    swprintf(errMsg, 256, L"mainWindow window received WM_KEYDOWN signal.\n");
-                }
-                if (hwnd == gameWindow) {
-                    swprintf(errMsg, 256, L"gameWindow window received WM_KEYDOWN signal.\n");
-                }
-                logDebugMessage(errMsg);
-                */
                 togglePause();
+                /*
+                if (hwnd == windowHandler.gameFieldWindow) {
+                    togglePause();
+                }
+                */
             }
             return 0;
         }
         case WM_TIMER:
         {
-            if (gameStatus == START_GAME) {
+            if (gameBoard.gameStatus == START_GAME) {
                 if (generateNextFrame() == 1) {
-                    InvalidateRect(windowHandler.gameWindow, NULL, TRUE);
+                    InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
                 }
                 else {
-                    RECT gameField; GetClientRect(windowHandler.gameWindow, &gameField);
+                    RECT gameField; GetClientRect(windowHandler.gameFieldWindow, &gameField);
                     gameField.left = gameBoard.cell_width;
                     gameField.right = gameField.right - gameBoard.cell_width;
                     gameField.top = gameBoard.cell_height;
                     gameField.bottom = gameField.bottom - gameBoard.cell_height;
-                    InvalidateRect(windowHandler.gameWindow, &gameField, TRUE);
+                    InvalidateRect(windowHandler.gameFieldWindow, &gameField, TRUE);
                 }
             }
             return 0;
@@ -645,9 +719,11 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         {
             updateGameboardPos();
             InvalidateRect(windowHandler.mainWindow, NULL, TRUE);
+            resizeGameContainerWindow();
             resizeMenuWindow();
             InvalidateRect(windowHandler.menuWindow, NULL, TRUE);
-            InvalidateRect(windowHandler.gameWindow, NULL, TRUE);
+            InvalidateRect(windowHandler.gameContainerWindow, NULL, TRUE);
+            InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
             return 0;
         }
     }
@@ -675,11 +751,7 @@ void resizeMenuWindow() {
     height = mainRect.bottom - mainRect.top;
     SetWindowPos(windowHandler.menuWindow, NULL, x, y, width, height, SWP_NOZORDER);
     
-    logDebugMessage(L"\n\n\n");
     ButtonList buttons = getButtonList(windowHandler.menuWindow);
-    wchar_t msg[32];
-    swprintf(msg, 32, L"Retrieved %d buttons.\n", buttons.count);
-    logDebugMessage(msg);
     RECT menuRect; GetClientRect(windowHandler.menuWindow, &menuRect);
     int buttonOffset = 0;
     x = ((menuRect.right - menuRect.left) / 2) - (BUTTON_WIDTH_MENU / 2);
@@ -692,13 +764,96 @@ void resizeMenuWindow() {
         buttonOffset++;
     }
 }
+
+
+void resizeGameWindows() {
+    resizeGameContainerWindow();
+    resizeGameDataDisplayWindow();
+    resizeGameFieldWindow();
+}
+
+void resizeGameContainerWindow() {
+    RECT mainRect; GetClientRect(windowHandler.mainWindow, &mainRect);
+    int width = mainRect.right - mainRect.left;
+    int height = mainRect.bottom - mainRect.top;
+    SetWindowPos(windowHandler.gameContainerWindow, NULL, mainRect.left, mainRect.top, mainRect.left + width, mainRect.top + height, SWP_NOZORDER);
+
+    ButtonList buttons = getButtonList(windowHandler.gameContainerWindow);
+    SetWindowPos(buttons.handles[0], NULL, mainRect.left + 40, mainRect.top + 40, 
+        BUTTON_WIDTH_MENU, BUTTON_HEIGHT_MENU, 
+        SWP_NOZORDER | SWP_FRAMECHANGED);
+}
+
+void resizeGameDataDisplayWindow() {
+    RECT containerRect; GetClientRect(windowHandler.gameContainerWindow, &containerRect);
+    int containerWidth = containerRect.right - containerRect.left;
+    int containerHeight = containerRect.bottom - containerRect.top;
+    int windowMargin_horiz = containerWidth / 3;
+    int windowMargin_vert = 10;
+    int windowWidth = windowMargin_horiz;
+    int windowHeight = windowHeight / 8;
+    
+    RECT windowRect = {
+        .left = containerRect.left + windowMargin_horiz,
+        .top = containerRect.top + windowMargin_vert,
+        .right = (containerRect.left + windowMargin_horiz) + windowWidth,
+        .bottom = (containerRect.top + windowMargin_vert) + windowHeight
+    };
+    SetWindowPos(windowHandler.gameContainerWindow, NULL, windowRect.left, windowRect.top, windowRect.left + windowWidth, windowRect.top + windowHeight, SWP_NOZORDER);
+}
+
+void resizeGameFieldWindow() {
+    RECT mainRect; GetClientRect(windowHandler.mainWindow, &mainRect);
+    updateGameboard(mainRect);
+    GameBoardRect gameRect = getGameboardRect();
+    SetWindowPos(windowHandler.gameFieldWindow, NULL, gameRect.left, gameRect.top, gameRect.right, gameRect.bottom, SWP_NOZORDER);
+}
+
+/*
+void buildGameContainerWindow(HINSTANCE hInstance) {
+    RECT mainRect; GetClientRect(windowHandler.mainWindow, &mainRect);
+    windowHandler.gameContainerWindow = CreateWindowEx(
+        0,                              // Optional window styles.
+        MENU_WINDOW_CLASS,                      // Window class
+        NULL,                       // Window text
+        WS_CHILD | WS_VISIBLE,            // Window style
+        // Size and position
+        mainRect.left, mainRect.top, 
+        mainRect.right - mainRect.left, mainRect.bottom - mainRect.top,
+        windowHandler.mainWindow,       // Parent window    
+        NULL,       // Menu
+        hInstance,  // Instance handle
+        NULL        // Additional application data
+        );
+}
+
+void buildGameFieldWindow(HINSTANCE hInstance) {
+    RECT gameContainerRect;                                                 // Unnecessary?
+    GetClientRect(windowHandler.gameContainerWindow, &gameContainerRect);   // Unnecessary?
+    GameBoardRect gameboardRect = getGameboardRect();
+    windowHandler.gameFieldWindow = CreateWindowEx(
+        0,                              // Optional window styles.
+        GAME_WINDOW_CLASS,                      // Window class
+        NULL,                       // Window text
+        WS_CHILD | WS_VISIBLE,            // Window style
+        // Size and position
+        gameboardRect.left, gameboardRect.top, gameboardRect.width, gameboardRect.height,
+        windowHandler.gameContainerWindow,       // Parent window    
+        NULL,       // Menu
+        hInstance,  // Instance handle
+        NULL        // Additional application data
+        );
+}
+
+*/
+
+
 // ((mainRect.bottom - mainRect.top) / 3)   + (buttonOffset * 60)
 BOOL CALLBACK EnumChildProc(HWND hwndChild, LPARAM lParam) {
     wchar_t cls[32];
     GetClassNameW(hwndChild, cls, 32);
     ButtonList* list = (ButtonList*)lParam;
     if (lstrcmpiW(cls, L"Button") == 0) {
-        logDebugMessage(L"HERE 1\n");\
         list->handles[list->count] = hwndChild;
         list->count++;
     }
@@ -731,11 +886,11 @@ ButtonList getButtonList(HWND parent) {
  * @see windowCleanUp()
  */
 void initializeBrushes() {
-    backgroundBrush = CreateSolidBrush(COLOR_SNAKEGAME_BACKGROUND);
-    wallBrush = CreateSolidBrush(COLOR_SNAKEGAME_WALL);
-    fieldBrush = CreateSolidBrush(COLOR_SNAKEGAME_GAMEFIELD);
-    snakeBrush = CreateSolidBrush(COLOR_SNAKEGAME_SNAKE);
-    fruitBrush = CreateSolidBrush(COLOR_SNAKEGAME_FRUIT);
+    brushHandler.backgroundBrush = CreateSolidBrush(COLOR_SNAKEGAME_BACKGROUND);
+    brushHandler.wallBrush = CreateSolidBrush(COLOR_SNAKEGAME_WALL);
+    brushHandler.fieldBrush = CreateSolidBrush(COLOR_SNAKEGAME_GAMEFIELD);
+    brushHandler.snakeBrush = CreateSolidBrush(COLOR_SNAKEGAME_SNAKE);
+    brushHandler.fruitBrush = CreateSolidBrush(COLOR_SNAKEGAME_FRUIT);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -761,7 +916,7 @@ void updateGameboardPos() {
     GetClientRect(windowHandler.mainWindow, &mainWindowRect);
     updateGameboard(mainWindowRect);
     GameBoardRect gameboardRect = getGameboardRect();
-    MoveWindow(windowHandler.gameWindow, gameboardRect.left, gameboardRect.top, gameboardRect.width, gameboardRect.height, TRUE);
+    MoveWindow(windowHandler.gameFieldWindow, gameboardRect.left, gameboardRect.top, gameboardRect.width, gameboardRect.height, TRUE);
 }
 
 void updateWindowConfigs() {
@@ -777,14 +932,12 @@ void updateWindowConfigs() {
         screenHeight = GetSystemMetrics(SM_CYSCREEN);
     }
     if (windowHandler.displayMode == DISPLAY_MODE_WINDOWED) {
-        logDebugMessage(L"Here 1\n\n");
         windowHandler.borderlessConfig.width = screenWidth;
         windowHandler.borderlessConfig.height = screenHeight;
         windowHandler.borderlessConfig.x = 0;
         windowHandler.borderlessConfig.y = 0;
     }
     else if (windowHandler.displayMode == DISPLAY_MODE_BORDERLESS) {
-        logDebugMessage(L"Here 2\n\n");
         RECT windowedRect; GetWindowRect(windowHandler.mainWindow, &windowedRect);
         windowHandler.windowedConfig.width = windowedRect.right - windowedRect.left;
         windowHandler.windowedConfig.height = windowedRect.bottom - windowedRect.top;
@@ -801,6 +954,7 @@ void changeDisplayMode() {
     else if (windowHandler.displayMode == DISPLAY_MODE_WINDOWED) {
         setWindowedMode();
     }
+    resizeGameWindows();
 }
 
 void setBorderlessMode() {
@@ -811,6 +965,7 @@ void setBorderlessMode() {
         windowHandler.borderlessConfig.width,
         windowHandler.borderlessConfig.height,
         SWP_NOZORDER | SWP_FRAMECHANGED);
+    ShowWindow(windowHandler.mainWindow, SW_RESTORE);
     SetFocus(hwndForeground);
 }
 
@@ -850,35 +1005,55 @@ void switchWindows(HWND hwnd_current, HWND hwnd_next) {
 void paintMainWindow() {
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(windowHandler.mainWindow, &ps);
-    FillRect(hdc, &ps.rcPaint, backgroundBrush);
-
-    /*
-    const wchar_t *title = L"Snake Game";
-
-    GameBoardRect gameBoard = getGameboardRect();
-
-    RECT textRect = {
-        gameBoard.left,
-        gameBoard.top - 40,  // 40 px above square
-        gameBoard.right,
-        gameBoard.top
-    };
-
-    SetBkMode(hdc, TRANSPARENT); // don’t paint background behind text
-    SetTextColor(hdc, RGB(0, 0, 0)); // black text
-
-    DrawText(hdc, title, -1, &textRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-    */
-
-
+    HBRUSH greenBrush = CreateSolidBrush(RGB(0, 255, 0));
+    FillRect(hdc, &ps.rcPaint, greenBrush);
     EndPaint(windowHandler.mainWindow, &ps);
 }
 
 void paintMenuWindow() {
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(windowHandler.menuWindow, &ps);
-    FillRect(hdc, &ps.rcPaint, backgroundBrush);
+    HBRUSH redBrush = CreateSolidBrush(RGB(255, 0 ,0 ));
+    FillRect(hdc, &ps.rcPaint, redBrush);
     EndPaint(windowHandler.menuWindow, &ps);
+}
+
+void paintGameContainerWindow() {
+
+    /*
+    const wchar_t *title = L"Snake Game";
+
+    SetBkMode(hdc, TRANSPARENT); // don’t paint background behind text
+    SetTextColor(hdc, RGB(0, 0, 0)); // black text
+
+    DrawText(hdc, title, -1, &ps.rcPaint, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    */
+
+
+    PAINTSTRUCT ps;
+    HDC hdc = BeginPaint(windowHandler.gameContainerWindow, &ps);
+    HBRUSH blueBrush = CreateSolidBrush(RGB(0, 0, 255));
+    FillRect(hdc, &ps.rcPaint, blueBrush);
+    RECT gameContainerRect; GetClientRect(windowHandler.gameContainerWindow, &gameContainerRect);
+    EndPaint(windowHandler.gameContainerWindow, &ps);
+}
+
+void PaintGameDataDisplayWindow() {
+    PAINTSTRUCT ps;
+    HDC hdc = BeginPaint(windowHandler.gameDataDisplayWindow, &ps);
+    RECT gameContainerRect; GetClientRect(windowHandler.gameContainerWindow, &gameContainerRect);
+    RECT dataDisplayRect; GetClientRect(windowHandler.gameDataDisplayWindow, &dataDisplayRect);
+
+    SetBkMode(hdc, TRANSPARENT);
+    SetTextColor(hdc, RGB(255, 255, 255));
+
+    HFONT hOldFont = (HFONT)SelectObject(hdc, gameBoard.scoreFont);
+
+
+    HBRUSH redBrush = CreateSolidBrush(RGB(255, 0, 0));
+    FillRect(hdc, &dataDisplayRect, redBrush);
+    DrawText(hdc, gameBoard.score_text, -1, &dataDisplayRect, DT_LEFT | DT_SINGLELINE);
+    SelectObject(hdc, hOldFont);
 }
 
 /**
@@ -893,17 +1068,17 @@ void paintMenuWindow() {
  * @see drawSnake()
  * @see drawGridDebug()
  */
-void paintGameWindow() {
+void paintGameFieldWindow() {
     PAINTSTRUCT ps;
-    HDC hdc = BeginPaint(windowHandler.gameWindow, &ps);
+    HDC hdc = BeginPaint(windowHandler.gameFieldWindow, &ps);
     RECT gameWindowRect;
-    GetClientRect(windowHandler.gameWindow, &gameWindowRect);
+    GetClientRect(windowHandler.gameFieldWindow, &gameWindowRect);
     drawGameField(gameWindowRect, hdc);
     //drawDebugGrid(gameWindowRect, hdc);
     drawSnake(hdc);
     drawWalls(hdc);
     drawFruit(hdc);
-    EndPaint(windowHandler.gameWindow, &ps);
+    EndPaint(windowHandler.gameFieldWindow, &ps);
 }
 
 /**
@@ -934,7 +1109,7 @@ void drawSnake(HDC hdc) {
         logError(L"Error in function drawSnake(HDC hdc) of window.h.\n\tsnake.node == NULL\n");
     }
     SnakeNode* node = snake.node;
-    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, snakeBrush);
+    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, brushHandler.snakeBrush);
     while (node != NULL) {
         RECT node_bounds = getNodeBoundingRect(node->x, node->y);
         drawCircle(hdc, node_bounds);
@@ -955,7 +1130,7 @@ void drawSnake(HDC hdc) {
  * @see paintGameWindow()
  */
 void drawGameField(RECT field, HDC hdc) {
-    FillRect(hdc, &field, fieldBrush);
+    FillRect(hdc, &field, brushHandler.fieldBrush);
 }
 
 /**
@@ -971,27 +1146,26 @@ void drawGameField(RECT field, HDC hdc) {
  * @see getCellBoundingRect()
  */
 void drawWalls(HDC hdc) {
-    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, wallBrush);
+    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, brushHandler.wallBrush);
     for (int i = 1; i <= GAMEGRIDCOLS; i++) {
         RECT cell_bounds = getCellBoundingRect(i, 1);
-        FillRect(hdc, &cell_bounds, wallBrush);
+        FillRect(hdc, &cell_bounds, brushHandler.wallBrush);
         cell_bounds = getCellBoundingRect(i, GAMEGRIDCOLS);
-        FillRect(hdc, &cell_bounds, wallBrush);
+        FillRect(hdc, &cell_bounds, brushHandler.wallBrush);
 
         cell_bounds = getCellBoundingRect(1, i);
-        FillRect(hdc, &cell_bounds, wallBrush);
+        FillRect(hdc, &cell_bounds, brushHandler.wallBrush);
         cell_bounds = getCellBoundingRect(GAMEGRIDCOLS, i);
-        FillRect(hdc, &cell_bounds, wallBrush);
+        FillRect(hdc, &cell_bounds, brushHandler.wallBrush);
     }
     SelectObject(hdc, oldBrush);
 }
 
 void drawFruit(HDC hdc) {
     // --- Fruit body (orange) ---
-    HBRUSH orangeFruitBrush = CreateSolidBrush(RGB(255, 140, 0));  // orange color
-    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, orangeFruitBrush);
+    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, brushHandler.fruitBrush);
 
-    RECT fruit_bounds = getNodeBoundingRect(gameFruit.x, gameFruit.y);
+    RECT fruit_bounds = getNodeBoundingRect(gameBoard.fruitLoc.x, gameBoard.fruitLoc.y);
 
     Ellipse(hdc, fruit_bounds.left, fruit_bounds.top, fruit_bounds.right, fruit_bounds.bottom);
 
@@ -1016,7 +1190,6 @@ void drawFruit(HDC hdc) {
     // --- Restore & cleanup ---
     SelectObject(hdc, oldBrush);
     SelectObject(hdc, oldPen);
-    DeleteObject(orangeFruitBrush);
     //DeleteObject(leafBrush);
     DeleteObject(stemPen);
 }
@@ -1106,11 +1279,11 @@ void windowCleanUp() {
  * @see windowCleanUp()
  */
 void deleteBrushes() {
-    DeleteObject(backgroundBrush);
-    DeleteObject(wallBrush);
-    DeleteObject(fieldBrush);
-    DeleteObject(snakeBrush);
-    DeleteObject(fruitBrush);
+    DeleteObject(brushHandler.backgroundBrush);
+    DeleteObject(brushHandler.wallBrush);
+    DeleteObject(brushHandler.fieldBrush);
+    DeleteObject(brushHandler.snakeBrush);
+    DeleteObject(brushHandler.fruitBrush);
 }
 
 #endif

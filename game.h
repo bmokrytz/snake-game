@@ -17,13 +17,14 @@
 #define GAMEGRIDCOLS 60
 #define SNAKEHEADSTARTX (GAMEGRIDCOLS / 2)
 #define SNAKEHEADSTARTY (GAMEGRIDROWS / 2)
-#define SCORE_INCREMENT 10
 #define DIRECTION_UP 0
 #define DIRECTION_DOWN 1
 #define DIRECTION_LEFT 2
 #define DIRECTION_RIGHT 3
 #define EATS_FRUIT 4
 #define COLLISION 5
+#define COLLISION_RANGE 1
+#define FRUIT_MARGIN 3
 #define NO_COLLISION 6
 #define PAUSE_GAME 7
 #define START_GAME 8
@@ -33,6 +34,16 @@
 /* ************************************************************ */
 
 // ******************** Structs ********************
+
+/**
+ * @brief Represents a simple 2D coordinate pair.
+ *
+ * Useful for passing positions without referencing full grid cells or nodes.
+ */
+typedef struct Coord {
+    int x; /**< X-coordinate value. */
+    int y; /**< Y-coordinate value. */
+} Coord;
 
 /**
  * @brief Defines the rectangular bounds and dimensions of the game board in pixels.
@@ -82,6 +93,13 @@ typedef struct GameBoard {
     int grid_cols;          /**< Number of grid columns. */
     int cell_width;         /**< Width of each cell in pixels. */
     int cell_height;        /**< Height of each cell in pixels. */
+    int score;
+    int score_increment;
+    int gameStatus;
+    Coord fruitLoc;
+    HFONT scoreFont;
+    wchar_t score_label[10];
+    wchar_t score_text[20];
 } GameBoard;
 
 /**
@@ -111,16 +129,6 @@ typedef struct SnakeHead {
     int node_diameter;
 } SnakeHead;
 
-/**
- * @brief Represents a simple 2D coordinate pair.
- *
- * Useful for passing positions without referencing full grid cells or nodes.
- */
-typedef struct Coord {
-    int x; /**< X-coordinate value. */
-    int y; /**< Y-coordinate value. */
-} Coord;
-
 /* ************************************************************ */
 
 // ******************** Global Variables ********************
@@ -144,27 +152,6 @@ GameBoard gameBoard;
  * @see SnakeHead
  */
 SnakeHead snake;
-
-/**
- * @brief Current score for the active game session.
- *
- * Tracks the player's score, which increases when the snake
- * eats fruit. Reset to zero when a new game starts.
- */
-int score;
-
-/**
- * @brief Tracks the current status of the game.
- *
- * Indicates whether the game is running, paused, or over.
- * Uses the predefined constants:
- * - START_GAME
- * - PAUSE_GAME
- * - GAME_OVER
- */
-int gameStatus;
-
-Coord gameFruit;
 
 /* ************************************************************ */
 
@@ -205,6 +192,9 @@ RECT getNodeBoundingRect(int x, int y);
 /*   --- Clean Up ---   */
 void freeGameData(); // - Wrapper
 void freeSnake();
+void resetGame();
+void resetGameGrid();
+void resetSnake();
 /*   -------------   */
 
 /* ************************************************************ */
@@ -253,7 +243,11 @@ void gameSetup() {
  * @see initializeGameGrid()
  */
 void initializeGame() {
-    score = 0; gameStatus = PAUSE_GAME;
+    gameBoard.gameStatus = PAUSE_GAME;
+    gameBoard.score = 0;
+    gameBoard.score_increment = 10;
+    swprintf(gameBoard.score_label, 10, L"Score: ");
+    swprintf(gameBoard.score_text, 20, L"%s%d", gameBoard.score_label, gameBoard.score);
     initializeGameGrid();
 }
 
@@ -421,7 +415,7 @@ int generateNextFrame(void) {
 
     switch (collisionVal) {
         case COLLISION:
-            gameStatus = GAME_OVER;
+            gameBoard.gameStatus = GAME_OVER;
             break;
 
         case EATS_FRUIT:
@@ -442,11 +436,11 @@ int generateNextFrame(void) {
  * @see gameStatus
  */
 void togglePause(void) {
-    if (gameStatus == PAUSE_GAME) {
-        gameStatus = START_GAME;
+    if (gameBoard.gameStatus == PAUSE_GAME) {
+        gameBoard.gameStatus = START_GAME;
         return;
     } else {
-        gameStatus = PAUSE_GAME;
+        gameBoard.gameStatus = PAUSE_GAME;
     }
 }
 
@@ -460,8 +454,8 @@ void togglePause(void) {
  * @see generateCoordinate()
  */
 void generateFruit(void) {
-    gameFruit = generateCoordinate();
-    gameBoard.grid[gameFruit.x][gameFruit.y].containsFruit = 1;
+    gameBoard.fruitLoc = generateCoordinate();
+    gameBoard.grid[gameBoard.fruitLoc.x][gameBoard.fruitLoc.y].containsFruit = 1;
 }
 
 /**
@@ -476,15 +470,24 @@ void generateFruit(void) {
  * @see Coord
  */
 Coord generateCoordinate(void) {
-    Coord coordinate = { .x = snake.node->x, .y = snake.node->y };
-
-    while (coordinate.x == snake.node->x) {
-        coordinate.x = 1 + rand() % (GAMEGRIDCOLS - 1);
+    Coord coordinate;
+    BOOL coordinate_invalid = TRUE;
+    while (coordinate_invalid) {
+        coordinate_invalid = FALSE;
+        coordinate.x = (rand() % (GAMEGRIDCOLS - (2 * FRUIT_MARGIN))) + FRUIT_MARGIN;
+        coordinate.y = (rand() % (GAMEGRIDROWS - (2 * FRUIT_MARGIN))) + FRUIT_MARGIN;
+        for (int i = 0 - COLLISION_RANGE; i <= 0 + COLLISION_RANGE; i++) {
+            for (int j = 0 - COLLISION_RANGE; j <= 0 + COLLISION_RANGE; j++) {
+                if (coordinate.x + i == snake.node->x && coordinate.y + j == snake.node->y) {
+                    coordinate_invalid = TRUE;
+                    break;
+                }
+            }
+            if (coordinate_invalid) {
+                break;  
+            }
+        }
     }
-    while (coordinate.y == snake.node->y) {
-        coordinate.y = 1 + rand() % (GAMEGRIDROWS - 1);
-    }
-
     return coordinate;
 }
 
@@ -508,9 +511,9 @@ Coord generateCoordinate(void) {
  * @see generateFruit()
  */
 int eatFruit() {
-    int fruit_x = gameFruit.x;
-    int fruit_y = gameFruit.y;
-    gameBoard.grid[gameFruit.x][gameFruit.y].containsFruit = 0;
+    int fruit_x = gameBoard.fruitLoc.x;
+    int fruit_y = gameBoard.fruitLoc.y;
+    gameBoard.grid[gameBoard.fruitLoc.x][gameBoard.fruitLoc.y].containsFruit = 0;
     incrementScore();
     extendSnake();
     generateFruit();
@@ -630,7 +633,8 @@ void changeSnakeDirection(int direction) {
  * @see SCORE_INCREMENT
  */
 void incrementScore() {
-    score += SCORE_INCREMENT;
+    gameBoard.score += gameBoard.score_increment;
+    swprintf(gameBoard.score_text, 20, L"%s%d", gameBoard.score_label, gameBoard.score);
 }
 
 /**
@@ -648,6 +652,7 @@ void incrementScore() {
  * @see generateNextFrame()
  * @see logError()
  */
+/*
 int collisionCheck() {
     if (snake.node == NULL) {
         logError(L"Error in function collisionCheck() of game.h.\n\tsnake.node == NULL\n");
@@ -659,6 +664,55 @@ int collisionCheck() {
         return EATS_FRUIT;
     }
     return NO_COLLISION;
+}
+*/
+
+int collisionCheck() {
+    if (snake.node == NULL) {
+        logError(L"Error in function collisionCheck() of game.h.\n\tsnake.node == NULL\n");
+    }
+    if (gameBoard.grid[snake.node->x][snake.node->y].containsSnake) {
+        return COLLISION;
+    }
+    for (int i = 0 - COLLISION_RANGE; i <= 0 + COLLISION_RANGE; i++) {
+        for (int j = 0 - COLLISION_RANGE; j <= 0 + COLLISION_RANGE; j++) {
+            if (gameBoard.grid[snake.node->x + i][snake.node->y + j].containsWall) {
+                if (i != 0 && j != 0) {
+                    return COLLISION;
+                }
+            }
+            else if (gameBoard.grid[snake.node->x + i][snake.node->y + j].containsFruit) {
+                return EATS_FRUIT;
+            }
+        }
+    }
+    return NO_COLLISION;
+}
+
+void resetGame() {
+    logDebugMessage(L"Starting resetGame();...\n");
+    gameBoard.score = 0;
+    resetGameGrid();
+    logDebugMessage(L"Returned from  resetGameGrid();...\n");
+    resetSnake();
+    logDebugMessage(L"Returned from  resetSnake();...\n");
+    gameBoard.grid[gameBoard.fruitLoc.x][gameBoard.fruitLoc.y].containsFruit = 0;
+    generateFruit();
+    logDebugMessage(L"Returned from  generateFruit();...\n");
+    logDebugMessage(L"\n\n");
+}
+
+void resetGameGrid() {
+    int rows = GAMEGRIDROWS, cols = GAMEGRIDCOLS;
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            gameBoard.grid[i][j].containsHead = 0;
+            gameBoard.grid[i][j].containsSnake = 0;
+            gameBoard.grid[i][j].containsFruit = 0;
+            if (i == 0 || j == 0 || i == (rows - 1) || j == (cols - 1)) gameBoard.grid[i][j].containsWall = 1;
+            else gameBoard.grid[i][j].containsWall = 0;
+        }
+    }
 }
 
 /*   --- Utility ---   */
@@ -818,6 +872,49 @@ void freeSnake() {
         freeNode = node;
     }
     snake.node = NULL;
+}
+
+int countSnakeTailNodes() {
+    SnakeNode* node = snake.node->nextNode;
+    int counter = 0;
+    while (node != NULL) {
+        counter++;
+        node = node->nextNode;
+    }
+    return counter;
+}
+
+void resetSnake() {
+    if (snake.node == NULL) {
+        logError(L"Error in function resetSnake() of game.h.\n\tsnake.node == NULL\n");
+    }
+    SnakeNode* node = snake.node->nextNode;
+    SnakeNode* freeNode = snake.node;
+    logDebugMessage(L"-------------------------\n");
+    int tailNodes = countSnakeTailNodes();
+    wchar_t msg[500];
+    swprintf(msg, 500, L"Starting snake node free loop with %d tail nodes...\n", tailNodes);
+    logDebugMessage(msg);
+    int counter = 1;
+    while(node != NULL) {
+        swprintf(msg, 500, L"Loop %d ", counter);
+        logDebugMessage(msg);
+        counter++;
+        node = node->nextNode;
+        free(freeNode);
+        freeNode = node;
+        logDebugMessage(L"- end.  ");
+    }
+    logDebugMessage(L"\n-------------------------\n");
+
+    snake.node->x = SNAKEHEADSTARTX;
+    snake.node->y = SNAKEHEADSTARTY;
+    snake.node->prev_x = SNAKEHEADSTARTX;
+    snake.node->prev_y = SNAKEHEADSTARTY;
+    snake.node->prevNode = NULL;
+    snake.node->nextNode = NULL;
+    gameBoard.grid[SNAKEHEADSTARTX][SNAKEHEADSTARTY].containsHead = 1;
+    snake.movement_direction = DIRECTION_UP;
 }
 
 /* ************************************************************ */
