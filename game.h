@@ -95,6 +95,7 @@ typedef struct GameBoard {
     int cell_height;        /**< Height of each cell in pixels. */
     int score;
     int score_increment;
+    BOOL update_score;
     int gameStatus;
     Coord fruitLoc;
     HFONT scoreFont;
@@ -244,6 +245,7 @@ void gameSetup() {
  */
 void initializeGame() {
     gameBoard.gameStatus = PAUSE_GAME;
+    gameBoard.update_score = FALSE;
     gameBoard.score = 0;
     gameBoard.score_increment = 10;
     swprintf(gameBoard.score_label, 10, L"Score: ");
@@ -635,6 +637,7 @@ void changeSnakeDirection(int direction) {
 void incrementScore() {
     gameBoard.score += gameBoard.score_increment;
     swprintf(gameBoard.score_text, 20, L"%s%d", gameBoard.score_label, gameBoard.score);
+    gameBoard.update_score = TRUE;
 }
 
 /**
