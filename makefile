@@ -7,7 +7,7 @@ SRC = snake.c
 all: $(OUTPUT)
 
 $(OUTPUT): $(SRC)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SRC) -o $(OUTPUT)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SRC) -o $(OUTPUT) -lmsimg32
 
 clean:
 	rm $(OUTPUT)

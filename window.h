@@ -159,6 +159,8 @@ BrushHandler brushHandler;
 
 AnimationHandler animationHandler;
 
+int counter = 0;
+
 
 /*==============================================================================
  *                           FUNCTION  PROTOTYPES
@@ -182,7 +184,7 @@ void setWindowConfigs();
 void buildWindows(HINSTANCE hInstance);
 void buildMainWindow(HINSTANCE hInstance);
 void buildMenuWindow(HINSTANCE hInstance);
-void buildGameWindow(HINSTANCE hInstance);
+void buildGameWindows(HINSTANCE hInstance);
 void buildGameContainerWindow(HINSTANCE hInstance);
 void buildGameDataDisplayWindow(HINSTANCE hInstance);
 void buildGameFieldWindow(HINSTANCE hInstance);
@@ -242,6 +244,8 @@ void drawCircle(HDC hdc, RECT cell_bounds);
 
 void debugDropWindowedConfig();
 void debugDropMainWindowSizePosition();
+void debugLogRECT(RECT rect);
+void debugLogWindowRECT(WindowRECT windowRect);
 
 void windowCleanUp(void);
 void deleteBrushes(void);
@@ -250,7 +254,15 @@ void deleteBrushes(void);
 // TEMPORARY
 void animation_game_over(HDC hdc);
 
-
+void DrawOutlinedText(
+    HDC hdc,
+    LPCWSTR text,
+    RECT* rc,
+    COLORREF textColor,
+    COLORREF outlineColor,
+    int outlinePx,
+    UINT format
+);
 
 
 
@@ -424,7 +436,7 @@ void buildWindows(HINSTANCE hInstance) {
     if (windowHandler.menuWindow == NULL) {
         logError(L"Error in function buildWindows() of window.h.\n\tmenuWindow == NULL. Window creation failed.\n");
     }
-    buildGameWindow(hInstance);
+    buildGameWindows(hInstance);
     ShowWindow(windowHandler.mainWindow, SW_SHOW);
     ShowWindow(windowHandler.menuWindow, SW_SHOW);
     ShowWindow(windowHandler.gameContainerWindow, SW_HIDE);
@@ -523,18 +535,18 @@ WindowRECT getMenuWindowRect() {
     return menuWindowRect;
 }
 
-void buildGameWindow(HINSTANCE hInstance) {
+void buildGameWindows(HINSTANCE hInstance) {
     buildGameContainerWindow(hInstance);
     if (windowHandler.gameContainerWindow == NULL) {
-        logError(L"Error in function buildWindows() of window.h.\n\tgameContainerWindow == NULL. Window creation failed.\n");
+        logError(L"Error in function buildGameWindows() of window.h.\n\tgameContainerWindow == NULL. Window creation failed.\n");
     }
     buildGameDataDisplayWindow(hInstance);
     if (windowHandler.gameDataDisplayWindow == NULL) {
-        logError(L"Error in function buildWindows() of window.h.\n\tgameDataDisplayWindow == NULL. Window creation failed.\n");
+        logError(L"Error in function buildGameWindows() of window.h.\n\tgameDataDisplayWindow == NULL. Window creation failed.\n");
     }
     buildGameFieldWindow(hInstance);
     if (windowHandler.gameFieldWindow == NULL) {
-        logError(L"Error in function buildWindows() of window.h.\n\tgameWindow == NULL. Window creation failed.\n");
+        logError(L"Error in function buildGameWindows() of window.h.\n\tgameFieldWindow == NULL. Window creation failed.\n");
     }
 }
 
@@ -622,6 +634,8 @@ void buildGameFieldWindow(HINSTANCE hInstance) {
 }
 
 WindowRECT getGameFieldWindowRect() {
+    //RECT mainRect; GetClientRect(windowHandler.mainWindow, &mainRect);
+    //updateGameboard(mainRect);
     GameBoardRect gameboardRect = getGameboardRect();
 
     WindowRECT gameFieldWindowRect = {
@@ -662,6 +676,23 @@ void debugDropMainWindowSizePosition() {
     swprintf(msg, 700, L"%smainWindowRect.left = %d. mainWindowRect.top = %d.\n", msg, mainWindowRect.left, mainWindowRect.top);
     swprintf(msg, 700, L"%smainWindowRect.right = %d. mainWindowRect.bottom = %d.\n", msg, mainWindowRect.right, mainWindowRect.bottom);
     swprintf(msg, 700, L"%smainWindowRect.width = %d. mainWindowRect.height = %d.\n\n", msg, mainWindowRect.width, mainWindowRect.height);
+    logDebugMessage(msg);
+}
+
+void debugLogRECT(RECT rect) {
+    wchar_t msg[700];
+    swprintf(msg, 700, L"RECT:\n");
+    swprintf(msg, 700, L"%srect.left = %d. rect.top = %d.\n", msg, rect.left, rect.top);
+    swprintf(msg, 700, L"%srect.right = %d. rect.bottom = %d.\n", msg, rect.right, rect.bottom);
+    logDebugMessage(msg);
+}
+
+void debugLogWindowRECT(WindowRECT windowRect) {
+    wchar_t msg[700];
+    swprintf(msg, 700, L"windowRECT:\n");
+    swprintf(msg, 700, L"%swindowRect.left = %d. windowRect.top = %d.\n", msg, windowRect.left, windowRect.top);
+    swprintf(msg, 700, L"%swindowRect.right = %d. windowRect.bottom = %d.\n", msg, windowRect.right, windowRect.bottom);
+    swprintf(msg, 700, L"%swindowRect.width = %d. windowRect.height = %d.\n", msg, windowRect.width, windowRect.height);
     logDebugMessage(msg);
 }
 
@@ -799,6 +830,7 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                 {
                     gameBoard.gameStatus = PAUSE_GAME;
                     resetGame();
+                    swprintf(gameBoard.score_text, 20, L"%s%d", gameBoard.score_label, gameBoard.score);
                     InvalidateRect(windowHandler.gameContainerWindow, NULL, TRUE);
                     InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
                 }
@@ -879,22 +911,13 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                             InvalidateRect(windowHandler.gameDataDisplayWindow, NULL, TRUE);
                             gameBoard.update_score = FALSE;
                         }
-                        if (generateNextFrame() == 1) {
-                            InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
-                        }
-                        else {
-                            RECT gameField; GetClientRect(windowHandler.gameFieldWindow, &gameField);
-                            gameField.left = gameBoard.cell_width;
-                            gameField.right = gameField.right - gameBoard.cell_width;
-                            gameField.top = gameBoard.cell_height;
-                            gameField.bottom = gameField.bottom - gameBoard.cell_height;
-                            InvalidateRect(windowHandler.gameFieldWindow, &gameField, TRUE);
-                        }
+                        generateNextFrame();
+                        InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
                     }
                     break;
                 case ANIMATION_TIMER_ID:
-                    animationHandler.gameOver = TRUE;
-                    InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
+                    //animationHandler.gameOver = TRUE;
+                    //InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
                     //paintGameOverAnimation();
                     break;
             }
@@ -1051,45 +1074,6 @@ void resizeGameFieldWindow() {
         SWP_NOZORDER);
 }
 
-/*
-void buildGameContainerWindow(HINSTANCE hInstance) {
-    RECT mainRect; GetClientRect(windowHandler.mainWindow, &mainRect);
-    windowHandler.gameContainerWindow = CreateWindowEx(
-        0,                              // Optional window styles.
-        MENU_WINDOW_CLASS,                      // Window class
-        NULL,                       // Window text
-        WS_CHILD | WS_VISIBLE,            // Window style
-        // Size and position
-        mainRect.left, mainRect.top, 
-        mainRect.right - mainRect.left, mainRect.bottom - mainRect.top,
-        windowHandler.mainWindow,       // Parent window    
-        NULL,       // Menu
-        hInstance,  // Instance handle
-        NULL        // Additional application data
-        );
-}
-
-void buildGameFieldWindow(HINSTANCE hInstance) {
-    RECT gameContainerRect;                                                 // Unnecessary?
-    GetClientRect(windowHandler.gameContainerWindow, &gameContainerRect);   // Unnecessary?
-    GameBoardRect gameboardRect = getGameboardRect();
-    windowHandler.gameFieldWindow = CreateWindowEx(
-        0,                              // Optional window styles.
-        GAME_WINDOW_CLASS,                      // Window class
-        NULL,                       // Window text
-        WS_CHILD | WS_VISIBLE,            // Window style
-        // Size and position
-        gameboardRect.left, gameboardRect.top, gameboardRect.width, gameboardRect.height,
-        windowHandler.gameContainerWindow,       // Parent window    
-        NULL,       // Menu
-        hInstance,  // Instance handle
-        NULL        // Additional application data
-        );
-}
-
-*/
-
-
 // ((mainRect.bottom - mainRect.top) / 3)   + (buttonOffset * 60)
 BOOL CALLBACK EnumChildProc(HWND hwndChild, LPARAM lParam) {
     wchar_t cls[32];
@@ -1177,17 +1161,6 @@ void updateDisplayMode() {
     ShowWindow(windowHandler.mainWindow, SW_RESTORE);
     SetFocus(hwndForeground);
 }
-
-/*
-WindowRECT getMainWindowRect() {
-    if (windowHandler.displayMode == DISPLAY_MODE_BORDERLESS) {
-        return windowHandler.borderlessConfig;
-    }
-    else {
-        return windowHandler.windowedConfig;
-    }
-}
-*/
 
 void switchWindows(HWND hwnd_current, HWND hwnd_next) {
     ShowWindow(hwnd_current, SW_HIDE);
@@ -1294,9 +1267,9 @@ void paintGameFieldWindow() {
     WindowState* st = (WindowState*)GetWindowLongPtr(windowHandler.gameFieldWindow, GWLP_USERDATA);
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(windowHandler.gameFieldWindow, &ps);
+    RECT winRect; GetClientRect(windowHandler.gameFieldWindow, &winRect);
 
     if (st->staticDirty == TRUE) {
-        RECT winRect; GetClientRect(windowHandler.gameFieldWindow, &winRect);
         drawGameField(winRect, st->staticDC);
         drawWalls(st->staticDC);
         st->staticDirty = FALSE;
@@ -1306,10 +1279,79 @@ void paintGameFieldWindow() {
     //drawDebugGrid(gameWindowRect, hdc);
     drawSnake(st->frameDC);
     drawFruit(st->frameDC);
+
+    if (gameBoard.gameStatus == GAME_OVER) {
+        int savedDCConfig = SaveDC(st->frameDC);
+        SetBkMode(st->frameDC, TRANSPARENT);
+        SelectObject(st->frameDC, gameBoard.scoreFont);
+
+        DrawOutlinedText(
+            st->frameDC, 
+            L"GAME OVER",
+            &winRect,
+            RGB(255, 0, 0),   // text color
+            RGB(0, 0, 0),     // outline color
+            2,                // outline thickness (1–2 is ideal)
+            DT_CENTER | DT_SINGLELINE | DT_VCENTER
+        );
+        RestoreDC(st->frameDC, savedDCConfig);
+    }
+
     BitBlt(hdc, 0, 0, st->width, st->height, st->frameDC, 0, 0, SRCCOPY);
 
     EndPaint(windowHandler.gameFieldWindow, &ps);
 }
+
+void DrawOutlinedText(
+    HDC hdc,
+    LPCWSTR text,
+    RECT* rc,
+    COLORREF textColor,
+    COLORREF outlineColor,
+    int outlinePx,
+    UINT format
+) {
+    SetTextColor(hdc, outlineColor);
+
+    for (int dx = -outlinePx; dx <= outlinePx; dx++) {
+        for (int dy = -outlinePx; dy <= outlinePx; dy++) {
+            if (dx == 0 && dy == 0) continue;
+            RECT rect = *rc;
+            OffsetRect(&rect, dx, dy);
+            DrawText(hdc, text, -1, &rect, format);
+        }
+    }
+
+    SetTextColor(hdc, textColor);
+    DrawText(hdc, text, -1, rc, format);
+}
+
+
+/*
+void PaintGameDataDisplayWindow() {
+    WindowState* st = (WindowState*)GetWindowLongPtr(windowHandler.gameDataDisplayWindow, GWLP_USERDATA);
+    PAINTSTRUCT ps;
+    HDC hdc = BeginPaint(windowHandler.gameDataDisplayWindow, &ps);
+
+    if (st->staticDirty == TRUE) {
+        RECT winRect; GetClientRect(windowHandler.gameDataDisplayWindow, &winRect);
+        FillRect(st->staticDC, &winRect, brushHandler.backgroundBrush);
+        st->staticDirty = FALSE;
+    }
+    BitBlt(st->frameDC, 0, 0, st->width, st->height, st->staticDC, 0, 0, SRCCOPY);
+
+    RECT dataDisplayRect; GetClientRect(windowHandler.gameDataDisplayWindow, &dataDisplayRect);
+    int savedDCConfig = SaveDC(st->frameDC);
+    SetBkMode(st->frameDC, TRANSPARENT);
+    SetTextColor(st->frameDC, RGB(255, 255, 255));
+    SelectObject(st->frameDC, gameBoard.scoreFont);
+    DrawText(st->frameDC, gameBoard.score_text, -1, &dataDisplayRect, DT_LEFT | DT_SINGLELINE);
+    RestoreDC(st->frameDC, savedDCConfig);
+
+    BitBlt(hdc, 0, 0, st->width, st->height, st->frameDC, 0, 0, SRCCOPY);
+    EndPaint(windowHandler.gameDataDisplayWindow, &ps);
+}
+*/
 
 void animation_game_over(HDC hdc) {
     WindowRECT gameFieldWindowRect = getGameFieldWindowRect();

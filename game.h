@@ -164,16 +164,17 @@ void initializeGame();
 void initializeGameGrid();
 void initializeRand();
 void initializeSnake();
+void initializeFruit();
 void initializeCellAndNodeData();
 SnakeNode* createSnakeNode(SnakeNode config);
 /*   -------------   */
 
 /*   --- Game Loop ---   */
-int generateNextFrame(); // - Wrapper
+void generateNextFrame(); // - Wrapper
 void togglePause();
 void generateFruit();
 Coord generateCoordinate();
-int eatFruit();
+void eatFruit();
 void extendSnake();
 void moveSnake();
 void changeSnakeDirection(int direction);
@@ -226,7 +227,7 @@ void gameSetup() {
     initializeGame();
     initializeRand();
     initializeSnake();
-    generateFruit();
+    initializeFruit();
 }
 
 /**
@@ -334,6 +335,11 @@ void initializeSnake() {
     snake.movement_direction = DIRECTION_UP;
 }
 
+void initializeFruit() {
+    gameBoard.fruitLoc = generateCoordinate();
+    gameBoard.grid[gameBoard.fruitLoc.x][gameBoard.fruitLoc.y].containsFruit = 1;
+}
+
 /**
  * @brief Initializes derived cell and node size data based on the game board dimensions.
  *
@@ -411,7 +417,7 @@ SnakeNode* createSnakeNode(SnakeNode config) {
  * @see collisionCheck()
  * @see eatFruit()
  */
-int generateNextFrame(void) {
+void generateNextFrame() {
     moveSnake();
     int collisionVal = collisionCheck();
 
@@ -421,12 +427,9 @@ int generateNextFrame(void) {
             break;
 
         case EATS_FRUIT:
-            if (eatFruit() == 1) {
-                return 1;
-            }
+            eatFruit();
             break;
     }
-    return 0;
 }
 
 /**
@@ -455,7 +458,7 @@ void togglePause(void) {
  *
  * @see generateCoordinate()
  */
-void generateFruit(void) {
+void generateFruit() {
     gameBoard.fruitLoc = generateCoordinate();
     gameBoard.grid[gameBoard.fruitLoc.x][gameBoard.fruitLoc.y].containsFruit = 1;
 }
@@ -471,7 +474,7 @@ void generateFruit(void) {
  *
  * @see Coord
  */
-Coord generateCoordinate(void) {
+Coord generateCoordinate() {
     Coord coordinate;
     BOOL coordinate_invalid = TRUE;
     while (coordinate_invalid) {
@@ -512,17 +515,13 @@ Coord generateCoordinate(void) {
  * @see extendSnake()
  * @see generateFruit()
  */
-int eatFruit() {
+void eatFruit() {
     int fruit_x = gameBoard.fruitLoc.x;
     int fruit_y = gameBoard.fruitLoc.y;
     gameBoard.grid[gameBoard.fruitLoc.x][gameBoard.fruitLoc.y].containsFruit = 0;
     incrementScore();
     extendSnake();
     generateFruit();
-    if (fruit_x <= 2 || fruit_x >= (GAMEGRIDCOLS - 2) || fruit_y <= 2 || fruit_y >= (GAMEGRIDROWS - 2)) {
-        return 1;
-    }
-    return 0;
 }
 
 /**
@@ -573,7 +572,7 @@ void extendSnake(void) {
  * @see changeSnakeDirection()
  * @see logError()
  */
-void moveSnake(void) {
+void moveSnake() {
     if (snake.node == NULL) {
         logError(L"Error in function moveSnake() of game.h.\n\tsnake.node == NULL\n");
     }
