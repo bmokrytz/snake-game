@@ -829,7 +829,7 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                 case ID_RESET_GAME:
                 {
                     gameBoard.gameStatus = PAUSE_GAME;
-                    resetGame();
+                    resetGame(windowHandler.gameFieldWindow);
                     swprintf(gameBoard.score_text, 20, L"%s%d", gameBoard.score_label, gameBoard.score);
                     InvalidateRect(windowHandler.gameContainerWindow, NULL, TRUE);
                     InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
@@ -911,7 +911,10 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                             InvalidateRect(windowHandler.gameDataDisplayWindow, NULL, TRUE);
                             gameBoard.update_score = FALSE;
                         }
-                        generateNextFrame();
+                        generateNextFrame(windowHandler.gameFieldWindow);
+                        //InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
+                    }
+                    if (gameBoard.gameStatus == GAME_OVER) {
                         InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
                     }
                     break;

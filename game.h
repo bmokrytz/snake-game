@@ -170,13 +170,13 @@ SnakeNode* createSnakeNode(SnakeNode config);
 /*   -------------   */
 
 /*   --- Game Loop ---   */
-void generateNextFrame(); // - Wrapper
+void generateNextFrame(HWND hwnd); // - Wrapper
 void togglePause();
-void generateFruit();
+void generateFruit(HWND hwnd);
 Coord generateCoordinate();
-void eatFruit();
-void extendSnake();
-void moveSnake();
+void eatFruit(HWND hwnd);
+void extendSnake(HWND hwnd);
+void moveSnake(HWND hwnd);
 void changeSnakeDirection(int direction);
 void incrementScore();
 int collisionCheck();
@@ -189,12 +189,13 @@ GameBoardRect getGameboardRect();
 void updateGameboard(RECT mainWindowRect);
 RECT getCellBoundingRect(int x, int y);
 RECT getNodeBoundingRect(int x, int y);
+RECT getNodeInvalidationRect(int x, int y);
 /*   -------------   */
 
 /*   --- Clean Up ---   */
 void freeGameData(); // - Wrapper
 void freeSnake();
-void resetGame();
+void resetGame(HWND hwnd);
 void resetGameGrid();
 void resetSnake();
 /*   -------------   */
@@ -417,8 +418,8 @@ SnakeNode* createSnakeNode(SnakeNode config) {
  * @see collisionCheck()
  * @see eatFruit()
  */
-void generateNextFrame() {
-    moveSnake();
+void generateNextFrame(HWND hwnd) {
+    moveSnake(hwnd);
     int collisionVal = collisionCheck();
 
     switch (collisionVal) {
@@ -427,7 +428,7 @@ void generateNextFrame() {
             break;
 
         case EATS_FRUIT:
-            eatFruit();
+            eatFruit(hwnd);
             break;
     }
 }
@@ -458,9 +459,11 @@ void togglePause(void) {
  *
  * @see generateCoordinate()
  */
-void generateFruit() {
+void generateFruit(HWND hwnd) {
     gameBoard.fruitLoc = generateCoordinate();
     gameBoard.grid[gameBoard.fruitLoc.x][gameBoard.fruitLoc.y].containsFruit = 1;
+    RECT newFruitPos = getNodeInvalidationRect(gameBoard.fruitLoc.x, gameBoard.fruitLoc.y);
+    InvalidateRect(hwnd, &newFruitPos, FALSE);
 }
 
 /**
@@ -515,13 +518,15 @@ Coord generateCoordinate() {
  * @see extendSnake()
  * @see generateFruit()
  */
-void eatFruit() {
+void eatFruit(HWND hwnd) {
     int fruit_x = gameBoard.fruitLoc.x;
     int fruit_y = gameBoard.fruitLoc.y;
+    RECT prevFruitPos = getNodeInvalidationRect(fruit_x, fruit_y);
     gameBoard.grid[gameBoard.fruitLoc.x][gameBoard.fruitLoc.y].containsFruit = 0;
     incrementScore();
-    extendSnake();
-    generateFruit();
+    extendSnake(hwnd);
+    generateFruit(hwnd);
+    InvalidateRect(hwnd, &prevFruitPos, FALSE);
 }
 
 /**
@@ -536,7 +541,7 @@ void eatFruit() {
  * @see createSnakeNode()
  * @see eatFruit()
  */
-void extendSnake(void) {
+void extendSnake(HWND hwnd) {
     SnakeNode* ptr = snake.node;
     while (ptr->nextNode != NULL) {
         ptr = ptr->nextNode;
@@ -552,6 +557,10 @@ void extendSnake(void) {
             .nextNode = NULL
         }
     );
+    RECT newTailPos = getNodeInvalidationRect(ptr->nextNode->x, ptr->nextNode->y);
+    RECT prevTailPos = getNodeInvalidationRect(ptr->x, ptr->y);
+    InvalidateRect(hwnd, &newTailPos, FALSE);
+    InvalidateRect(hwnd, &prevTailPos, FALSE);
 }
 
 /**
@@ -572,10 +581,15 @@ void extendSnake(void) {
  * @see changeSnakeDirection()
  * @see logError()
  */
-void moveSnake() {
+void moveSnake(HWND hwnd) {
     if (snake.node == NULL) {
         logError(L"Error in function moveSnake() of game.h.\n\tsnake.node == NULL\n");
     }
+    RECT newHeadPos;
+    RECT prevHeadPos = getNodeInvalidationRect(snake.node->x, snake.node->y);
+    RECT newTailPos;
+    RECT prevTailPos;
+    int dx, dy;
 
     SnakeNode* ptr = snake.node;
     ptr->prev_x = ptr->x;
@@ -584,6 +598,7 @@ void moveSnake() {
 
     if (snake.movement_direction == DIRECTION_UP) {
         ptr->y -= 1;
+
     } else if (snake.movement_direction == DIRECTION_DOWN) {
         ptr->y += 1;
     } else if (snake.movement_direction == DIRECTION_LEFT) {
@@ -593,6 +608,7 @@ void moveSnake() {
     }
 
     gameBoard.grid[ptr->x][ptr->y].containsHead = 1;
+    newHeadPos = getNodeInvalidationRect(ptr->x, ptr->y);
     ptr = ptr->nextNode;
 
     while (ptr != NULL) {
@@ -604,8 +620,22 @@ void moveSnake() {
         ptr->y = ptr->prevNode->prev_y;
 
         gameBoard.grid[ptr->x][ptr->y].containsSnake = 1;
+        /*
+        if (ptr->nextNode != NULL && ptr->nextNode->nextNode == NULL) {
+            newTailPos = getNodeInvalidationRect(ptr->nextNode->x, ptr->nextNode->y);
+            //prevTailPos = 
+        }
+        */
+       if (ptr->nextNode == NULL) {
+        newTailPos = getNodeInvalidationRect(ptr->x, ptr->y);
+        prevTailPos = getNodeInvalidationRect(ptr->prev_x, ptr->prev_y);
+       }
         ptr = ptr->nextNode;
     }
+    InvalidateRect(hwnd, &newHeadPos, FALSE);
+    InvalidateRect(hwnd, &prevHeadPos, FALSE);
+    InvalidateRect(hwnd, &newTailPos, FALSE);
+    InvalidateRect(hwnd, &prevTailPos, FALSE);
 }
 
 /**
@@ -691,7 +721,7 @@ int collisionCheck() {
     return NO_COLLISION;
 }
 
-void resetGame() {
+void resetGame(HWND hwnd) {
     logDebugMessage(L"Starting resetGame();...\n");
     gameBoard.score = 0;
     resetGameGrid();
@@ -699,9 +729,11 @@ void resetGame() {
     resetSnake();
     logDebugMessage(L"Returned from  resetSnake();...\n");
     gameBoard.grid[gameBoard.fruitLoc.x][gameBoard.fruitLoc.y].containsFruit = 0;
-    generateFruit();
+    generateFruit(hwnd);
     logDebugMessage(L"Returned from  generateFruit();...\n");
     logDebugMessage(L"\n\n");
+    RECT wndRect; GetClientRect(hwnd, &wndRect);
+    InvalidateRect(hwnd, &wndRect, TRUE);
 }
 
 void resetGameGrid() {
@@ -821,6 +853,15 @@ RECT getNodeBoundingRect(int x, int y) {
     rect.left = rect.right - snake.node_diameter;
     rect.bottom = ((y + 1) * gameBoard.cell_height);
     rect.top = rect.bottom - snake.node_diameter;
+    return rect;
+}
+
+RECT getNodeInvalidationRect(int x, int y) {
+    RECT rect;
+    rect.right = ((x + 1) * gameBoard.cell_width) + gameBoard.cell_width;
+    rect.left = (rect.right - snake.node_diameter) - gameBoard.cell_width;
+    rect.bottom = ((y + 1) * gameBoard.cell_height) + gameBoard.cell_height;
+    rect.top = (rect.bottom - snake.node_diameter) - gameBoard.cell_height;
     return rect;
 }
 
