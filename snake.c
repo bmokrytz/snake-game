@@ -23,14 +23,6 @@
 #include "window.h"
 #include "game.h"
 
-// Timer macros
-#define GAME_TIMER_NORMAL_SPEED_ID 1
-#define GAME_TIMER_NORMAL_SPEED_VAL 45
-#define GAME_TIMER_SLOW_SPEED_ID 2
-#define GAME_TIMER_SLOW_SPEED_VAL 45
-#define GAME_TIMER_FAST_SPEED_ID 3
-#define GAME_TIMER_FAST_SPEED_VAL 45
-
 /**
  * @brief The Win32 application entry point for the Snake game.
  *
