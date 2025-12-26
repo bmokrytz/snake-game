@@ -32,11 +32,13 @@
 
 // Timer macros
 #define GAME_TIMER_NORMAL_SPEED_ID 1
-#define GAME_TIMER_NORMAL_SPEED_VAL 45
+#define GAME_TIMER_NORMAL_SPEED_VAL 60
 #define GAME_TIMER_SLOW_SPEED_ID 2
-#define GAME_TIMER_SLOW_SPEED_VAL 45
+#define GAME_TIMER_SLOW_SPEED_VAL 80
 #define GAME_TIMER_FAST_SPEED_ID 3
 #define GAME_TIMER_FAST_SPEED_VAL 45
+#define GAME_TIMER_BOOST_ID 4
+#define GAME_TIMER_BOOST_VAL 20
 
 #endif
 
@@ -138,6 +140,7 @@ typedef struct SnakeHead {
     SnakeNode* node;       /**< Pointer to the head node of the snake. */
     int movement_direction;/**< Current movement direction (e.g., up, down, left, right). */
     int node_diameter;
+    BOOL boost;
 } SnakeHead;
 
 /* ************************************************************ */
@@ -182,6 +185,8 @@ SnakeNode* createSnakeNode(SnakeNode config);
 /*   --- Game Loop ---   */
 void generateNextFrame(HWND hwnd); // - Wrapper
 void togglePause(HWND hwnd);
+void setBoost(HWND hwnd);
+void disableBoost(HWND hwnd);
 void generateFruit(HWND hwnd);
 Coord generateCoordinate();
 void eatFruit(HWND hwnd);
@@ -348,6 +353,7 @@ void initializeSnake() {
 
     gameBoard.grid[SNAKEHEADSTARTX][SNAKEHEADSTARTY].containsHead = 1;
     snake.movement_direction = DIRECTION_UP;
+    snake.boost = FALSE;
 }
 
 void initializeFruit() {
@@ -463,6 +469,20 @@ void togglePause(HWND hwnd) {
     } else {
         gameBoard.gameStatus = PAUSE_GAME;
         KillTimer(hwnd, gameBoard.game_timer_id);
+    }
+}
+
+void setBoost(HWND hwnd) {
+    if (gameBoard.gameStatus == START_GAME && snake.boost == FALSE) {
+        snake.boost = TRUE;
+        setGameTimer(hwnd, GAME_TIMER_BOOST_ID);
+    }
+}
+
+void disableBoost(HWND hwnd) {
+    if (gameBoard.gameStatus == START_GAME && snake.boost == TRUE) {
+        snake.boost = FALSE;
+        disableGameTimer(hwnd, GAME_TIMER_BOOST_ID);
     }
 }
 
@@ -906,6 +926,9 @@ void setGameTimer(HWND hwnd, int gameTimerID) {
         case (GAME_TIMER_FAST_SPEED_ID):
             SetTimer(hwnd, GAME_TIMER_FAST_SPEED_ID, GAME_TIMER_FAST_SPEED_VAL, NULL);
             break;
+        case (GAME_TIMER_BOOST_ID):
+            SetTimer(hwnd, GAME_TIMER_BOOST_ID, GAME_TIMER_BOOST_VAL, NULL);
+            break;
     }
 }
 
@@ -919,6 +942,9 @@ void disableGameTimer(HWND hwnd, int gameTimerID) {
             break;
         case (GAME_TIMER_FAST_SPEED_ID):
             KillTimer(hwnd, GAME_TIMER_FAST_SPEED_ID);
+            break;
+        case (GAME_TIMER_BOOST_ID):
+            KillTimer(hwnd, GAME_TIMER_BOOST_ID);
             break;
     }
 }

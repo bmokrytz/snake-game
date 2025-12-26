@@ -894,29 +894,44 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
             else if (wParam == VK_RETURN) {
                 togglePause(windowHandler.mainWindow);
             }
+            else if (wParam == VK_SHIFT) {
+                setBoost(windowHandler.mainWindow);
+            }
             return 0;
+        }
+        case WM_KEYUP:
+        {
+            if (wParam == VK_SHIFT) {
+                disableBoost(windowHandler.mainWindow);
+            }
         }
         case WM_TIMER:
         {
             UINT_PTR timer_val = (UINT_PTR)wParam;
             switch (timer_val) {
                 case NORMAL_TICK_SPEED_TIMER_ID:
-                    if (gameBoard.gameStatus == START_GAME) {
+                    if (gameBoard.gameStatus == START_GAME && snake.boost == FALSE) {
                         if (gameBoard.update_score == TRUE) {
                             InvalidateRect(windowHandler.gameDataDisplayWindow, NULL, TRUE);
                             gameBoard.update_score = FALSE;
                         }
                         generateNextFrame(windowHandler.gameFieldWindow);
-                        //InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
                     }
                     if (gameBoard.gameStatus == GAME_OVER) {
                         InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
                     }
                     break;
-                case ANIMATION_TIMER_ID:
-                    //animationHandler.gameOver = TRUE;
-                    //InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
-                    //paintGameOverAnimation();
+                case GAME_TIMER_BOOST_ID:
+                    if (gameBoard.gameStatus == START_GAME && snake.boost == TRUE) {
+                        if (gameBoard.update_score == TRUE) {
+                            InvalidateRect(windowHandler.gameDataDisplayWindow, NULL, TRUE);
+                            gameBoard.update_score = FALSE;
+                        }
+                        generateNextFrame(windowHandler.gameFieldWindow);
+                    }
+                    if (gameBoard.gameStatus == GAME_OVER) {
+                        InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
+                    }
                     break;
             }
             return 0;
