@@ -29,6 +29,15 @@
 #define PAUSE_GAME 7
 #define START_GAME 8
 #define GAME_OVER 9
+
+// Timer macros
+#define GAME_TIMER_NORMAL_SPEED_ID 1
+#define GAME_TIMER_NORMAL_SPEED_VAL 45
+#define GAME_TIMER_SLOW_SPEED_ID 2
+#define GAME_TIMER_SLOW_SPEED_VAL 45
+#define GAME_TIMER_FAST_SPEED_ID 3
+#define GAME_TIMER_FAST_SPEED_VAL 45
+
 #endif
 
 /* ************************************************************ */
@@ -97,6 +106,7 @@ typedef struct GameBoard {
     int score_increment;
     BOOL update_score;
     int gameStatus;
+    int game_timer_id;
     Coord fruitLoc;
     HFONT scoreFont;
     wchar_t score_label[10];
@@ -171,7 +181,7 @@ SnakeNode* createSnakeNode(SnakeNode config);
 
 /*   --- Game Loop ---   */
 void generateNextFrame(HWND hwnd); // - Wrapper
-void togglePause();
+void togglePause(HWND hwnd);
 void generateFruit(HWND hwnd);
 Coord generateCoordinate();
 void eatFruit(HWND hwnd);
@@ -185,11 +195,14 @@ int collisionCheck();
 /*   --- Utility ---   */
 int getGameBoardCellWidth();
 int getGameBoardCellHeight();
+void setGameSpeed(int gameTimerID);
 GameBoardRect getGameboardRect();
 void updateGameboard(RECT mainWindowRect);
 RECT getCellBoundingRect(int x, int y);
 RECT getNodeBoundingRect(int x, int y);
 RECT getNodeInvalidationRect(int x, int y);
+void setGameTimer(HWND hwnd, int gameTimerID);
+void disableGameTimer(HWND hwnd, int gameTimerID);
 /*   -------------   */
 
 /*   --- Clean Up ---   */
@@ -250,6 +263,7 @@ void initializeGame() {
     gameBoard.update_score = FALSE;
     gameBoard.score = 0;
     gameBoard.score_increment = 10;
+    setGameSpeed(GAME_TIMER_NORMAL_SPEED_ID);
     swprintf(gameBoard.score_label, 10, L"Score: ");
     swprintf(gameBoard.score_text, 20, L"%s%d", gameBoard.score_label, gameBoard.score);
     initializeGameGrid();
@@ -441,12 +455,14 @@ void generateNextFrame(HWND hwnd) {
  *
  * @see gameStatus
  */
-void togglePause(void) {
+void togglePause(HWND hwnd) {
     if (gameBoard.gameStatus == PAUSE_GAME) {
         gameBoard.gameStatus = START_GAME;
+        setGameTimer(hwnd, gameBoard.game_timer_id);
         return;
     } else {
         gameBoard.gameStatus = PAUSE_GAME;
+        KillTimer(hwnd, gameBoard.game_timer_id);
     }
 }
 
@@ -775,6 +791,20 @@ int getGameBoardCellHeight() {
     return gameBoard.cell_height;
 }
 
+void setGameSpeed(int gameTimerID) {
+    switch (gameTimerID) {
+        case (GAME_TIMER_NORMAL_SPEED_ID):
+            gameBoard.game_timer_id = GAME_TIMER_NORMAL_SPEED_ID;
+            break;
+        case (GAME_TIMER_SLOW_SPEED_ID):
+            gameBoard.game_timer_id = GAME_TIMER_SLOW_SPEED_ID;
+            break;
+        case (GAME_TIMER_FAST_SPEED_ID):
+            gameBoard.game_timer_id = GAME_TIMER_FAST_SPEED_ID;
+            break;
+    }
+}
+
 /**
  * @brief Returns a copy of the current game board rectangle.
  *
@@ -863,6 +893,34 @@ RECT getNodeInvalidationRect(int x, int y) {
     rect.bottom = ((y + 1) * gameBoard.cell_height) + gameBoard.cell_height;
     rect.top = (rect.bottom - snake.node_diameter) - gameBoard.cell_height;
     return rect;
+}
+
+void setGameTimer(HWND hwnd, int gameTimerID) {
+    switch (gameTimerID) {
+        case (GAME_TIMER_NORMAL_SPEED_ID):
+            SetTimer(hwnd, GAME_TIMER_NORMAL_SPEED_ID, GAME_TIMER_NORMAL_SPEED_VAL, NULL);
+            break;
+        case (GAME_TIMER_SLOW_SPEED_ID):
+            SetTimer(hwnd, GAME_TIMER_SLOW_SPEED_ID, GAME_TIMER_SLOW_SPEED_VAL, NULL);
+            break;
+        case (GAME_TIMER_FAST_SPEED_ID):
+            SetTimer(hwnd, GAME_TIMER_FAST_SPEED_ID, GAME_TIMER_FAST_SPEED_VAL, NULL);
+            break;
+    }
+}
+
+void disableGameTimer(HWND hwnd, int gameTimerID) {
+    switch (gameTimerID) {
+        case (GAME_TIMER_NORMAL_SPEED_ID):
+            KillTimer(hwnd, GAME_TIMER_NORMAL_SPEED_ID);
+            break;
+        case (GAME_TIMER_SLOW_SPEED_ID):
+            KillTimer(hwnd, GAME_TIMER_SLOW_SPEED_ID);
+            break;
+        case (GAME_TIMER_FAST_SPEED_ID):
+            KillTimer(hwnd, GAME_TIMER_FAST_SPEED_ID);
+            break;
+    }
 }
 
 /*   -------------   */

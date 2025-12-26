@@ -892,12 +892,7 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                 }
             }
             else if (wParam == VK_RETURN) {
-                togglePause();
-                /*
-                if (hwnd == windowHandler.gameFieldWindow) {
-                    togglePause();
-                }
-                */
+                togglePause(windowHandler.mainWindow);
             }
             return 0;
         }
