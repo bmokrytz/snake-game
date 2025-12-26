@@ -24,14 +24,12 @@
 #include "game.h"
 
 // Timer macros
-#define NORMAL_TICK_SPEED_TIMER_ID 1
-#define NORMAL_TICK_SPEED_TIMER_VAL 45
-#define SLOW_TICK_SPEED_TIMER_ID 2
-#define SLOW_TICK_SPEED_TIMER_ID 45
-#define FAST_TICK_SPEED_TIMER_ID 3
-#define FAST_TICK_SPEED_TIMER_ID 45
-#define ANIMATION_TIMER_ID 4
-#define ANIMATION_TIMER_VAL 45
+#define GAME_TIMER_NORMAL_SPEED_ID 1
+#define GAME_TIMER_NORMAL_SPEED_VAL 45
+#define GAME_TIMER_SLOW_SPEED_ID 2
+#define GAME_TIMER_SLOW_SPEED_VAL 45
+#define GAME_TIMER_FAST_SPEED_ID 3
+#define GAME_TIMER_FAST_SPEED_VAL 45
 
 /**
  * @brief The Win32 application entry point for the Snake game.
@@ -60,8 +58,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     resetLogs();
     gameSetup();
     windowSetup(hInstance);
-    SetTimer(windowHandler.mainWindow, NORMAL_TICK_SPEED_TIMER_ID, NORMAL_TICK_SPEED_TIMER_VAL, NULL);
-    //SetTimer(windowHandler.mainWindow, ANIMATION_TIMER_ID, ANIMATION_TIMER_VAL, NULL);
     MSG msg = { };
     while (GetMessage(&msg, NULL, 0, 0) > 0)
     {
