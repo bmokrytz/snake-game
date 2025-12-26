@@ -29,6 +29,8 @@
 #define PAUSE_GAME 7
 #define START_GAME 8
 #define GAME_OVER 9
+#define ENERGY_DECAY_VALUE 4
+#define ENERGY_REPLENISH_VALUE 4
 
 // Timer macros
 #define GAME_TIMER_NORMAL_SPEED_ID 1
@@ -113,6 +115,7 @@ typedef struct GameBoard {
     HFONT scoreFont;
     wchar_t score_label[10];
     wchar_t score_text[20];
+    int energy_level;
 } GameBoard;
 
 /**
@@ -187,6 +190,7 @@ void generateNextFrame(HWND hwnd); // - Wrapper
 void togglePause(HWND hwnd);
 void setBoost(HWND hwnd);
 void disableBoost(HWND hwnd);
+void updateEnergyLevel();
 void generateFruit(HWND hwnd);
 Coord generateCoordinate();
 void eatFruit(HWND hwnd);
@@ -268,6 +272,7 @@ void initializeGame() {
     gameBoard.update_score = FALSE;
     gameBoard.score = 0;
     gameBoard.score_increment = 10;
+    gameBoard.energy_level = 100;
     setGameSpeed(GAME_TIMER_NORMAL_SPEED_ID);
     swprintf(gameBoard.score_label, 10, L"Score: ");
     swprintf(gameBoard.score_text, 20, L"%s%d", gameBoard.score_label, gameBoard.score);
@@ -483,6 +488,21 @@ void disableBoost(HWND hwnd) {
     if (gameBoard.gameStatus == START_GAME && snake.boost == TRUE) {
         snake.boost = FALSE;
         disableGameTimer(hwnd, GAME_TIMER_BOOST_ID);
+    }
+}
+
+void updateEnergyLevel() {
+    if (snake.boost == TRUE) {
+        gameBoard.energy_level -= ENERGY_DECAY_VALUE;
+        if (gameBoard.energy_level < 0) {
+            gameBoard.energy_level = 0;
+        }
+    }
+    else {
+        gameBoard.energy_level += ENERGY_REPLENISH_VALUE;
+        if (gameBoard.energy_level > 100) {
+            gameBoard.energy_level = 100;
+        }
     }
 }
 
