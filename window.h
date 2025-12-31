@@ -320,8 +320,9 @@ void windowSetup(HINSTANCE hInstance) {
 }
 
 void initializeWindowHandler() {
-    windowHandler.mainWindow = NULL; windowHandler.menuWindow = NULL;
-    windowHandler.gameContainerWindow = NULL; windowHandler.gameFieldWindow = NULL;
+    windowHandler.mainWindow = NULL;            windowHandler.menuWindow = NULL;
+    windowHandler.gameContainerWindow = NULL;   windowHandler.gameFieldWindow = NULL;
+    windowHandler.gameDataDisplayWindow = NULL; windowHandler.gameEnergyWindow = NULL;
     windowHandler.displayMode = DISPLAY_MODE_BORDERLESS;
 }
 
@@ -681,7 +682,42 @@ void buildGameEnergyWindow(HINSTANCE hInstance) {
 }
 
 WindowRECT getGameEnergyWindowRect() {
+    RECT containerRect; GetClientRect(windowHandler.gameContainerWindow, &containerRect);
+    WindowRECT gameFieldWindowRect = getGameFieldWindowRect();
+    int gameFieldHeight = gameFieldWindowRect.bottom - gameFieldWindowRect.top;
+    int energyWindowHeight = (gameFieldHeight / 3);
+    int energyWindowWidth = 50;
+    int energyMeterWallThickness = 10;
+    int padding_right = 20;
+    int right = (gameFieldWindowRect.left - padding_right);
+    int left = right - energyWindowWidth;
+    int top = (gameFieldWindowRect.top + (gameFieldHeight / 2)) - (energyWindowHeight / 2);
+    int bottom = top + energyWindowHeight;
+
+    WindowRECT gameEnergyWindowRect = {
+        .left = left,
+        .top = top,
+        .right = right,
+        .bottom = bottom,
+        .width = energyWindowWidth,
+        .height = energyWindowHeight
+    };
+    return gameEnergyWindowRect;
+}
+
+/*
+WindowRECT getGameEnergyWindowRect() {
+    RECT containerRect; GetClientRect(windowHandler.gameContainerWindow, &containerRect);
     RECT gameFieldRect; GetClientRect(windowHandler.gameFieldWindow, &gameFieldRect);
+    WindowRECT gameFieldWindowRect = getGameFieldWindowRect();
+    wchar_t msg[900];
+    swprintf(msg, 900, L"getGameEnergyWindowRect Debug:\n\n");
+    swprintf(msg, 900, L"%scontainerRect:\n", msg);
+    logDebugMessage(msg);
+    debugLogRECT(containerRect);
+    swprintf(msg, 900, L"gameFieldWindowRect:\n");
+    logDebugMessage(msg);
+    debugLogWindowRECT(gameFieldWindowRect);
     int gameFieldHeight = gameFieldRect.bottom - gameFieldRect.top;
     int energyWindowHeight = (gameFieldHeight / 3);
     int energyWindowWidth = 50;
@@ -700,8 +736,12 @@ WindowRECT getGameEnergyWindowRect() {
         .width = energyWindowWidth,
         .height = energyWindowHeight
     };
+    swprintf(msg, 900, L"gameEnergyWindowRect:\n");
+    logDebugMessage(msg);
+    debugLogWindowRECT(gameEnergyWindowRect);
     return gameEnergyWindowRect;
 }
+*/
 
 HWND createButton(ButtonConfig config) {
     return CreateWindowW(
@@ -735,18 +775,18 @@ void debugDropMainWindowSizePosition() {
 
 void debugLogRECT(RECT rect) {
     wchar_t msg[700];
-    swprintf(msg, 700, L"RECT:\n");
-    swprintf(msg, 700, L"%srect.left = %d. rect.top = %d.\n", msg, rect.left, rect.top);
-    swprintf(msg, 700, L"%srect.right = %d. rect.bottom = %d.\n", msg, rect.right, rect.bottom);
+    swprintf(msg, 700, L"\tRECT:\n");
+    swprintf(msg, 700, L"%s\t\trect.left = %d. rect.top = %d.\n", msg, rect.left, rect.top);
+    swprintf(msg, 700, L"%s\t\trect.right = %d. rect.bottom = %d.\n", msg, rect.right, rect.bottom);
     logDebugMessage(msg);
 }
 
 void debugLogWindowRECT(WindowRECT windowRect) {
     wchar_t msg[700];
-    swprintf(msg, 700, L"windowRECT:\n");
-    swprintf(msg, 700, L"%swindowRect.left = %d. windowRect.top = %d.\n", msg, windowRect.left, windowRect.top);
-    swprintf(msg, 700, L"%swindowRect.right = %d. windowRect.bottom = %d.\n", msg, windowRect.right, windowRect.bottom);
-    swprintf(msg, 700, L"%swindowRect.width = %d. windowRect.height = %d.\n", msg, windowRect.width, windowRect.height);
+    swprintf(msg, 700, L"\twindowRECT:\n");
+    swprintf(msg, 700, L"%s\t\twindowRect.left = %d. windowRect.top = %d.\n", msg, windowRect.left, windowRect.top);
+    swprintf(msg, 700, L"%s\t\twindowRect.right = %d. windowRect.bottom = %d.\n", msg, windowRect.right, windowRect.bottom);
+    swprintf(msg, 700, L"%s\t\twindowRect.width = %d. windowRect.height = %d.\n", msg, windowRect.width, windowRect.height);
     logDebugMessage(msg);
 }
 
@@ -1006,7 +1046,9 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         }
         case WM_SIZE:
         {
-            updateGameboardPos();
+            if (hwnd == windowHandler.mainWindow) {
+                updateGameboardPos();
+            }
             resizeAllWindows();
             resizeAllWindowBackbuffers(hwnd);
             repaintAllWindows();
@@ -1030,11 +1072,12 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 }
 
 static void repaintAllWindows() {
-    InvalidateRect(windowHandler.mainWindow, NULL, TRUE);
-    InvalidateRect(windowHandler.menuWindow, NULL, TRUE);
-    InvalidateRect(windowHandler.gameContainerWindow, NULL, TRUE);
-    InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
-    InvalidateRect(windowHandler.gameEnergyWindow, NULL, TRUE);
+    //if (windowHandler.mainWindow) InvalidateRect(windowHandler.mainWindow, NULL, TRUE);
+    if (windowHandler.menuWindow) InvalidateRect(windowHandler.menuWindow, NULL, TRUE);
+    if (windowHandler.gameContainerWindow) InvalidateRect(windowHandler.gameContainerWindow, NULL, TRUE);
+    if (windowHandler.gameDataDisplayWindow) InvalidateRect(windowHandler.gameDataDisplayWindow, NULL, TRUE);
+    if (windowHandler.gameFieldWindow) InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
+    if (windowHandler.gameEnergyWindow) InvalidateRect(windowHandler.gameEnergyWindow, NULL, TRUE);
 }
 
 static void resizeAllWindows() {
@@ -1159,6 +1202,9 @@ void resizeGameFieldWindow() {
 }
 
 void resizeGameEnergyWindow() {
+    wchar_t msg[900];
+    swprintf(msg, 900, L"\n\nrunning resizeGameEnergyWindow()...\n\n");
+    logDebugMessage(msg);
     WindowRECT gameEnergyWindowRect = getGameEnergyWindowRect();
     SetWindowPos(windowHandler.gameEnergyWindow, NULL, 
         gameEnergyWindowRect.left, gameEnergyWindowRect.top, 
@@ -1422,9 +1468,10 @@ void paintGameEnergyWindow() {
     WindowState* st = (WindowState*)GetWindowLongPtr(windowHandler.gameEnergyWindow, GWLP_USERDATA);
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(windowHandler.gameEnergyWindow, &ps);
-    RECT winRect; GetClientRect(windowHandler.gameEnergyWindow, &winRect);
+    RECT containerRect; GetClientRect(windowHandler.gameContainerWindow, &containerRect);
+    RECT outerRect; GetClientRect(windowHandler.gameEnergyWindow, &outerRect);
     
-    RECT innerRect = winRect;
+    RECT innerRect = outerRect;
     innerRect.left += 10; innerRect.right -= 10;
     innerRect.top += 10; innerRect.bottom -= 10;
 
@@ -1443,11 +1490,11 @@ void paintGameEnergyWindow() {
         COLORREF black = RGB(0, 0, 0);
         HBRUSH blackBrush = CreateSolidBrush(black);
         
-        RECT containerRect = winRect;
+        RECT containerRect = outerRect;
         containerRect.left += 2; containerRect.right -= 2;
         containerRect.top += 2; containerRect.bottom -= 2;
         
-        FillRect(st->staticDC, &winRect, whiteBrush);
+        FillRect(st->staticDC, &outerRect, whiteBrush);
         FillRect(st->staticDC, &containerRect, blackBrush);
         DeleteObject(blackBrush);
 
