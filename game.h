@@ -41,6 +41,8 @@
 #define GAME_TIMER_FAST_SPEED_VAL 45
 #define GAME_TIMER_BOOST_ID 4
 #define GAME_TIMER_BOOST_VAL 20
+#define GAME_TIMER_BOOST_RECHARGE_ID 5
+#define GAME_TIMER_BOOST_RECHARGE_VAL 400
 
 #endif
 
@@ -113,6 +115,7 @@ typedef struct GameBoard {
     int game_timer_id;
     Coord fruitLoc;
     HFONT scoreFont;
+    HFONT energyFont;
     wchar_t score_label[10];
     wchar_t score_text[20];
     int energy_level;
@@ -144,6 +147,8 @@ typedef struct SnakeHead {
     int movement_direction;/**< Current movement direction (e.g., up, down, left, right). */
     int node_diameter;
     BOOL boost;
+    BOOL boost_depleted;
+    BOOL boost_recharging;
 } SnakeHead;
 
 /* ************************************************************ */
@@ -190,7 +195,10 @@ void generateNextFrame(HWND hwnd); // - Wrapper
 void togglePause(HWND hwnd);
 void setBoost(HWND hwnd);
 void disableBoost(HWND hwnd);
-void updateEnergyLevel();
+void setBoostDepleted(HWND hwnd);
+void updateEnergyLevel(HWND hwnd);
+void startBoostRecharge(HWND hwnd);
+void stopBoostRecharge(HWND hwnd);
 void generateFruit(HWND hwnd);
 Coord generateCoordinate();
 void eatFruit(HWND hwnd);
@@ -359,6 +367,8 @@ void initializeSnake() {
     gameBoard.grid[SNAKEHEADSTARTX][SNAKEHEADSTARTY].containsHead = 1;
     snake.movement_direction = DIRECTION_UP;
     snake.boost = FALSE;
+    snake.boost_depleted = FALSE;
+    snake.boost_recharging = FALSE;
 }
 
 void initializeFruit() {
@@ -491,7 +501,12 @@ void disableBoost(HWND hwnd) {
     }
 }
 
-void updateEnergyLevel() {
+void setBoostDepleted(HWND hwnd) {
+    disableBoost(hwnd);
+    snake.boost_depleted = TRUE;
+}
+
+void updateEnergyLevel(HWND hwnd) {
     if (snake.boost == TRUE) {
         gameBoard.energy_level -= ENERGY_DECAY_VALUE;
         if (gameBoard.energy_level < 0) {
@@ -502,8 +517,19 @@ void updateEnergyLevel() {
         gameBoard.energy_level += ENERGY_REPLENISH_VALUE;
         if (gameBoard.energy_level > 100) {
             gameBoard.energy_level = 100;
+            stopBoostRecharge(hwnd);
         }
     }
+}
+
+void startBoostRecharge(HWND hwnd) {
+    snake.boost_recharging = TRUE;
+    setGameTimer(hwnd, GAME_TIMER_BOOST_RECHARGE_ID);
+}
+
+void stopBoostRecharge(HWND hwnd) {
+    snake.boost_recharging = FALSE;
+    disableGameTimer(hwnd, GAME_TIMER_BOOST_RECHARGE_ID);
 }
 
 /**
@@ -949,6 +975,9 @@ void setGameTimer(HWND hwnd, int gameTimerID) {
         case (GAME_TIMER_BOOST_ID):
             SetTimer(hwnd, GAME_TIMER_BOOST_ID, GAME_TIMER_BOOST_VAL, NULL);
             break;
+        case (GAME_TIMER_BOOST_RECHARGE_ID):
+            SetTimer(hwnd, GAME_TIMER_BOOST_RECHARGE_ID, GAME_TIMER_BOOST_RECHARGE_VAL, NULL);
+            break;
     }
 }
 
@@ -965,6 +994,9 @@ void disableGameTimer(HWND hwnd, int gameTimerID) {
             break;
         case (GAME_TIMER_BOOST_ID):
             KillTimer(hwnd, GAME_TIMER_BOOST_ID);
+            break;
+        case (GAME_TIMER_BOOST_RECHARGE_ID):
+            KillTimer(hwnd, GAME_TIMER_BOOST_RECHARGE_ID);
             break;
     }
 }
