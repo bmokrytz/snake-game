@@ -1067,33 +1067,20 @@ void resetSnake() {
     if (snake.node == NULL) {
         logError(L"Error in function resetSnake() of game.h.\n\tsnake.node == NULL\n");
     }
-    SnakeNode* node = snake.node->nextNode;
-    SnakeNode* freeNode = snake.node;
-    logDebugMessage(L"-------------------------\n");
+
+    SnakeNode* node = snake.node;
+    SnakeNode* freeNode = node;
     int tailNodes = countSnakeTailNodes();
-    wchar_t msg[500];
-    swprintf(msg, 500, L"Starting snake node free loop with %d tail nodes...\n", tailNodes);
-    logDebugMessage(msg);
     int counter = 1;
+
     while(node != NULL) {
-        swprintf(msg, 500, L"Loop %d ", counter);
-        logDebugMessage(msg);
-        counter++;
         node = node->nextNode;
+        counter++;
         free(freeNode);
         freeNode = node;
-        logDebugMessage(L"- end.  ");
     }
-    logDebugMessage(L"\n-------------------------\n");
 
-    snake.node->x = SNAKEHEADSTARTX;
-    snake.node->y = SNAKEHEADSTARTY;
-    snake.node->prev_x = SNAKEHEADSTARTX;
-    snake.node->prev_y = SNAKEHEADSTARTY;
-    snake.node->prevNode = NULL;
-    snake.node->nextNode = NULL;
-    gameBoard.grid[SNAKEHEADSTARTX][SNAKEHEADSTARTY].containsHead = 1;
-    snake.movement_direction = DIRECTION_UP;
+    initializeSnake();
 }
 
 /* ************************************************************ */
