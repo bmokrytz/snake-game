@@ -120,6 +120,7 @@ typedef struct WindowHandler {
     HWND gameContainerWindow;
     HWND gameDataDisplayWindow;
     HWND gameFieldWindow;
+    HWND gameEnergyWindow;
     WindowRECT windowedConfig;
     WindowRECT borderlessConfig;
     WindowRECT minWindowedConfig;
@@ -188,12 +189,14 @@ void buildGameWindows(HINSTANCE hInstance);
 void buildGameContainerWindow(HINSTANCE hInstance);
 void buildGameDataDisplayWindow(HINSTANCE hInstance);
 void buildGameFieldWindow(HINSTANCE hInstance);
+void buildGameEnergyWindow(HINSTANCE hInstance);
 WindowRECT getSnakeWindowRect(HWND hwnd);
 WindowRECT getMainWindowRect();
 WindowRECT getMenuWindowRect();
 WindowRECT getGameContainerWindowRect();
 WindowRECT getGameDataDisplayWindowRect();
 WindowRECT getGameFieldWindowRect();
+WindowRECT getGameEnergyWindowRect();
 static void repaintAllWindows();
 static void resizeAllWindowBackbuffers(HWND hwnd);
 static void resizeWindowBackbuffer(HWND hwnd);
@@ -218,8 +221,10 @@ void resizeMenuWindow();
 void resizeGameContainerWindow();
 void resizeGameDataDisplayWindow();
 void resizeGameFieldWindow();
+void resizeGameEnergyWindow();
 BOOL CALLBACK EnumChildProc(HWND hwndChild, LPARAM lParam);
 ButtonList getButtonList(HWND parent);
+RECT getEnergyMeterOuterRect();
 
 
 /*----------------------------------------------------------------------------*/
@@ -231,6 +236,8 @@ void paintMenuWindow();
 void paintGameContainerWindow();
 void PaintGameDataDisplayWindow();
 void paintGameFieldWindow();
+void paintGameEnergyWindow();
+void drawEnergyDisplay(HDC hdc, RECT innerRect, int innerHeight);
 void drawDebugGrid(RECT field, HDC hdc);
 void drawGameField(RECT field, HDC hdc);
 void drawSnake(HDC hdc);
@@ -314,8 +321,9 @@ void windowSetup(HINSTANCE hInstance) {
 }
 
 void initializeWindowHandler() {
-    windowHandler.mainWindow = NULL; windowHandler.menuWindow = NULL;
-    windowHandler.gameContainerWindow = NULL; windowHandler.gameFieldWindow = NULL;
+    windowHandler.mainWindow = NULL;            windowHandler.menuWindow = NULL;
+    windowHandler.gameContainerWindow = NULL;   windowHandler.gameFieldWindow = NULL;
+    windowHandler.gameDataDisplayWindow = NULL; windowHandler.gameEnergyWindow = NULL;
     windowHandler.displayMode = DISPLAY_MODE_BORDERLESS;
 }
 
@@ -349,7 +357,27 @@ void loadFonts() {
         TEXT("Jersey 25")
     );
     if (gameBoard.scoreFont == NULL) {
-        logError(L"Error creating font in windowSetup().\n\tFont creation failed.\n");
+        logError(L"Error creating font (gameBoard.scoreFont) in windowSetup().\n\tFont creation failed.\n");
+    }
+
+    gameBoard.energyFont = CreateFont(
+        24,                 // height (font size in logical units)
+        0,                  // width (0 = auto)
+        0,                  // escapement
+        0,                  // orientation
+        FW_NORMAL,          // weight (FW_BOLD, FW_LIGHT, etc.)
+        FALSE,              // italic
+        FALSE,              // underline
+        FALSE,              // strikeout
+        DEFAULT_CHARSET,
+        OUT_OUTLINE_PRECIS,
+        CLIP_DEFAULT_PRECIS,
+        CLEARTYPE_QUALITY,
+        VARIABLE_PITCH,
+        TEXT("Jersey 25")
+    );
+    if (gameBoard.energyFont == NULL) {
+        logError(L"Error creating font (gameBoard.energyFont) in windowSetup().\n\tFont creation failed.\n");
     }
 }
 
@@ -442,6 +470,7 @@ void buildWindows(HINSTANCE hInstance) {
     ShowWindow(windowHandler.gameContainerWindow, SW_HIDE);
     ShowWindow(windowHandler.gameDataDisplayWindow, SW_HIDE);
     ShowWindow(windowHandler.gameFieldWindow, SW_HIDE);
+    ShowWindow(windowHandler.gameEnergyWindow, SW_HIDE);
     SetFocus(windowHandler.menuWindow);
 }
 
@@ -480,6 +509,9 @@ WindowRECT getSnakeWindowRect(HWND hwnd) {
     }
     else if (hwnd == windowHandler.gameFieldWindow) {
         return getGameFieldWindowRect();
+    }
+    else if (hwnd == windowHandler.gameEnergyWindow) {
+        return getGameEnergyWindowRect();
     }
     else {
         return getMainWindowRect();
@@ -547,6 +579,10 @@ void buildGameWindows(HINSTANCE hInstance) {
     buildGameFieldWindow(hInstance);
     if (windowHandler.gameFieldWindow == NULL) {
         logError(L"Error in function buildGameWindows() of window.h.\n\tgameFieldWindow == NULL. Window creation failed.\n");
+    }
+    buildGameEnergyWindow(hInstance);
+    if (windowHandler.gameEnergyWindow == NULL) {
+        logError(L"Error in function buildGameWindows() of window.h.\n\tgameEnergyWindow == NULL. Window creation failed.\n");
     }
 }
 
@@ -649,6 +685,87 @@ WindowRECT getGameFieldWindowRect() {
     return gameFieldWindowRect;
 }
 
+void buildGameEnergyWindow(HINSTANCE hInstance) {
+    WindowRECT gameEnergyWindowRect = getGameEnergyWindowRect();
+    windowHandler.gameEnergyWindow = CreateWindowEx(
+        0,                              // Optional window styles.
+        GAME_WINDOW_CLASS,                      // Window class
+        NULL,                       // Window text
+        WS_CHILD | WS_VISIBLE,            // Window style
+        // Size and position
+        gameEnergyWindowRect.left, gameEnergyWindowRect.top, 
+        gameEnergyWindowRect.width, gameEnergyWindowRect.height,
+        windowHandler.gameContainerWindow,       // Parent window    
+        NULL,       // Menu
+        hInstance,  // Instance handle
+        NULL        // Additional application data
+        );
+}
+
+WindowRECT getGameEnergyWindowRect() {
+    RECT containerRect; GetClientRect(windowHandler.gameContainerWindow, &containerRect);
+    WindowRECT gameFieldWindowRect = getGameFieldWindowRect();
+    int gameFieldHeight = gameFieldWindowRect.bottom - gameFieldWindowRect.top;
+    //int energyWindowHeight = (gameFieldHeight / 3) + 50;
+    int energyWindowHeight = (gameFieldHeight / 3);
+    //int energyWindowWidth = 70;
+    int energyWindowWidth = 70;
+    int energyMeterWallThickness = 10;
+    int padding_right = 20;
+    int right = (gameFieldWindowRect.left - padding_right);
+    int left = right - energyWindowWidth;
+    int top = (gameFieldWindowRect.top + (gameFieldHeight / 2)) - (energyWindowHeight / 2);
+    int bottom = top + energyWindowHeight;
+
+    WindowRECT gameEnergyWindowRect = {
+        .left = left,
+        .top = top,
+        .right = right,
+        .bottom = bottom,
+        .width = energyWindowWidth,
+        .height = energyWindowHeight
+    };
+    return gameEnergyWindowRect;
+}
+
+/*
+WindowRECT getGameEnergyWindowRect() {
+    RECT containerRect; GetClientRect(windowHandler.gameContainerWindow, &containerRect);
+    RECT gameFieldRect; GetClientRect(windowHandler.gameFieldWindow, &gameFieldRect);
+    WindowRECT gameFieldWindowRect = getGameFieldWindowRect();
+    wchar_t msg[900];
+    swprintf(msg, 900, L"getGameEnergyWindowRect Debug:\n\n");
+    swprintf(msg, 900, L"%scontainerRect:\n", msg);
+    logDebugMessage(msg);
+    debugLogRECT(containerRect);
+    swprintf(msg, 900, L"gameFieldWindowRect:\n");
+    logDebugMessage(msg);
+    debugLogWindowRECT(gameFieldWindowRect);
+    int gameFieldHeight = gameFieldRect.bottom - gameFieldRect.top;
+    int energyWindowHeight = (gameFieldHeight / 3);
+    int energyWindowWidth = 50;
+    int energyMeterWallThickness = 10;
+    int padding_right = 20;
+    int right = (gameFieldRect.left - padding_right);
+    int left = right - energyWindowWidth;
+    int top = (gameFieldRect.top + (gameFieldHeight / 2)) - (energyWindowHeight / 2);
+    int bottom = top + energyWindowHeight;
+
+    WindowRECT gameEnergyWindowRect = {
+        .left = left,
+        .top = top,
+        .right = right,
+        .bottom = bottom,
+        .width = energyWindowWidth,
+        .height = energyWindowHeight
+    };
+    swprintf(msg, 900, L"gameEnergyWindowRect:\n");
+    logDebugMessage(msg);
+    debugLogWindowRECT(gameEnergyWindowRect);
+    return gameEnergyWindowRect;
+}
+*/
+
 HWND createButton(ButtonConfig config) {
     return CreateWindowW(
         L"BUTTON",               // Predefined class name
@@ -681,18 +798,18 @@ void debugDropMainWindowSizePosition() {
 
 void debugLogRECT(RECT rect) {
     wchar_t msg[700];
-    swprintf(msg, 700, L"RECT:\n");
-    swprintf(msg, 700, L"%srect.left = %d. rect.top = %d.\n", msg, rect.left, rect.top);
-    swprintf(msg, 700, L"%srect.right = %d. rect.bottom = %d.\n", msg, rect.right, rect.bottom);
+    swprintf(msg, 700, L"\tRECT:\n");
+    swprintf(msg, 700, L"%s\t\trect.left = %d. rect.top = %d.\n", msg, rect.left, rect.top);
+    swprintf(msg, 700, L"%s\t\trect.right = %d. rect.bottom = %d.\n", msg, rect.right, rect.bottom);
     logDebugMessage(msg);
 }
 
 void debugLogWindowRECT(WindowRECT windowRect) {
     wchar_t msg[700];
-    swprintf(msg, 700, L"windowRECT:\n");
-    swprintf(msg, 700, L"%swindowRect.left = %d. windowRect.top = %d.\n", msg, windowRect.left, windowRect.top);
-    swprintf(msg, 700, L"%swindowRect.right = %d. windowRect.bottom = %d.\n", msg, windowRect.right, windowRect.bottom);
-    swprintf(msg, 700, L"%swindowRect.width = %d. windowRect.height = %d.\n", msg, windowRect.width, windowRect.height);
+    swprintf(msg, 700, L"\twindowRECT:\n");
+    swprintf(msg, 700, L"%s\t\twindowRect.left = %d. windowRect.top = %d.\n", msg, windowRect.left, windowRect.top);
+    swprintf(msg, 700, L"%s\t\twindowRect.right = %d. windowRect.bottom = %d.\n", msg, windowRect.right, windowRect.bottom);
+    swprintf(msg, 700, L"%s\t\twindowRect.width = %d. windowRect.height = %d.\n", msg, windowRect.width, windowRect.height);
     logDebugMessage(msg);
 }
 
@@ -839,6 +956,7 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                     switchWindows(windowHandler.menuWindow, windowHandler.gameContainerWindow);
                     ShowWindow(windowHandler.gameDataDisplayWindow, SW_SHOW);
                     ShowWindow(windowHandler.gameFieldWindow, SW_SHOW);
+                    ShowWindow(windowHandler.gameEnergyWindow, SW_SHOW);
                     SetFocus(windowHandler.gameFieldWindow);
                 }
             }
@@ -865,6 +983,9 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
             }
             else if (hwnd == windowHandler.gameFieldWindow) {
                 paintGameFieldWindow();
+            }
+            else if (hwnd == windowHandler.gameEnergyWindow) {
+                paintGameEnergyWindow();
             }
             return 0;
         }
@@ -895,7 +1016,12 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                 togglePause(windowHandler.mainWindow);
             }
             else if (wParam == VK_SHIFT) {
-                setBoost(windowHandler.mainWindow);
+                if (snake.boost_depleted == FALSE) {
+                    setBoost(windowHandler.mainWindow);
+                    if (snake.boost_recharging == TRUE) {
+                        stopBoostRecharge(windowHandler.mainWindow);
+                    }
+                }
             }
             return 0;
         }
@@ -903,6 +1029,12 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         {
             if (wParam == VK_SHIFT) {
                 disableBoost(windowHandler.mainWindow);
+                if (snake.boost_depleted == TRUE) {
+                    snake.boost_depleted = FALSE;
+                }
+                if (snake.boost_recharging == FALSE) {
+                    startBoostRecharge(windowHandler.mainWindow);
+                }
             }
         }
         case WM_TIMER:
@@ -910,27 +1042,45 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
             UINT_PTR timer_val = (UINT_PTR)wParam;
             switch (timer_val) {
                 case NORMAL_TICK_SPEED_TIMER_ID:
-                    if (gameBoard.gameStatus == START_GAME && snake.boost == FALSE) {
-                        if (gameBoard.update_score == TRUE) {
-                            InvalidateRect(windowHandler.gameDataDisplayWindow, NULL, TRUE);
-                            gameBoard.update_score = FALSE;
+                    if (snake.boost == FALSE) {
+                        if (gameBoard.gameStatus == START_GAME) {
+                            if (gameBoard.update_score == TRUE) {
+                                InvalidateRect(windowHandler.gameDataDisplayWindow, NULL, TRUE);
+                                gameBoard.update_score = FALSE;
+                            }
+                            generateNextFrame(windowHandler.gameFieldWindow);
                         }
-                        generateNextFrame(windowHandler.gameFieldWindow);
-                    }
-                    if (gameBoard.gameStatus == GAME_OVER) {
-                        InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
+                        if (gameBoard.gameStatus == GAME_OVER) {
+                            InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
+                        }
+                        InvalidateRect(windowHandler.gameEnergyWindow, NULL, TRUE);
                     }
                     break;
                 case GAME_TIMER_BOOST_ID:
-                    if (gameBoard.gameStatus == START_GAME && snake.boost == TRUE) {
-                        if (gameBoard.update_score == TRUE) {
-                            InvalidateRect(windowHandler.gameDataDisplayWindow, NULL, TRUE);
-                            gameBoard.update_score = FALSE;
+                    if (snake.boost == TRUE) {
+                        if (gameBoard.gameStatus == START_GAME && snake.boost == TRUE) {
+                            if (gameBoard.energy_level > 0) {
+                                if (gameBoard.update_score == TRUE) {
+                                    InvalidateRect(windowHandler.gameDataDisplayWindow, NULL, TRUE);
+                                    gameBoard.update_score = FALSE;
+                                }
+                                generateNextFrame(windowHandler.gameFieldWindow);
+                            }
+                            else {
+                                setBoostDepleted(windowHandler.mainWindow);
+                                startBoostRecharge(windowHandler.mainWindow);
+                            }
                         }
-                        generateNextFrame(windowHandler.gameFieldWindow);
+                        if (gameBoard.gameStatus == GAME_OVER) {
+                            InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
+                        }
+                        updateEnergyLevel(windowHandler.mainWindow);
+                        InvalidateRect(windowHandler.gameEnergyWindow, NULL, TRUE);
                     }
-                    if (gameBoard.gameStatus == GAME_OVER) {
-                        InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
+                    break;
+                case GAME_TIMER_BOOST_RECHARGE_ID:
+                    if (snake.boost_recharging == TRUE) {
+                        updateEnergyLevel(windowHandler.mainWindow);
                     }
                     break;
             }
@@ -938,7 +1088,9 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         }
         case WM_SIZE:
         {
-            updateGameboardPos();
+            if (hwnd == windowHandler.mainWindow) {
+                updateGameboardPos();
+            }
             resizeAllWindows();
             resizeAllWindowBackbuffers(hwnd);
             repaintAllWindows();
@@ -962,10 +1114,12 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 }
 
 static void repaintAllWindows() {
-    InvalidateRect(windowHandler.mainWindow, NULL, TRUE);
-    InvalidateRect(windowHandler.menuWindow, NULL, TRUE);
-    InvalidateRect(windowHandler.gameContainerWindow, NULL, TRUE);
-    InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
+    //if (windowHandler.mainWindow) InvalidateRect(windowHandler.mainWindow, NULL, TRUE);
+    if (windowHandler.menuWindow) InvalidateRect(windowHandler.menuWindow, NULL, TRUE);
+    if (windowHandler.gameContainerWindow) InvalidateRect(windowHandler.gameContainerWindow, NULL, TRUE);
+    if (windowHandler.gameDataDisplayWindow) InvalidateRect(windowHandler.gameDataDisplayWindow, NULL, TRUE);
+    if (windowHandler.gameFieldWindow) InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
+    if (windowHandler.gameEnergyWindow) InvalidateRect(windowHandler.gameEnergyWindow, NULL, TRUE);
 }
 
 static void resizeAllWindows() {
@@ -973,6 +1127,7 @@ static void resizeAllWindows() {
     if (windowHandler.gameContainerWindow) resizeGameContainerWindow();
     if (windowHandler.gameDataDisplayWindow) resizeGameDataDisplayWindow();
     if (windowHandler.gameFieldWindow) resizeGameFieldWindow();
+    if (windowHandler.gameEnergyWindow) resizeGameEnergyWindow();
 }
 
 static void resizeAllWindowBackbuffers(HWND hwnd) {
@@ -982,6 +1137,9 @@ static void resizeAllWindowBackbuffers(HWND hwnd) {
     if (windowHandler.gameContainerWindow) resizeWindowBackbuffer(windowHandler.gameContainerWindow);
     if (windowHandler.gameDataDisplayWindow) resizeWindowBackbuffer(windowHandler.gameDataDisplayWindow);
     if (windowHandler.gameFieldWindow) resizeWindowBackbuffer(windowHandler.gameFieldWindow);
+
+    // Not necessary. Energy guage does not change size.
+    if (windowHandler.gameEnergyWindow) resizeWindowBackbuffer(windowHandler.gameEnergyWindow);
 }
 
 static void resizeWindowBackbuffer(HWND hwnd) {
@@ -1084,6 +1242,14 @@ void resizeGameFieldWindow() {
     SetWindowPos(windowHandler.gameFieldWindow, NULL, 
         gameFieldWindowRect.left, gameFieldWindowRect.top, 
         gameFieldWindowRect.width, gameFieldWindowRect.height, 
+        SWP_NOZORDER);
+}
+
+void resizeGameEnergyWindow() {
+    WindowRECT gameEnergyWindowRect = getGameEnergyWindowRect();
+    SetWindowPos(windowHandler.gameEnergyWindow, NULL, 
+        gameEnergyWindowRect.left, gameEnergyWindowRect.top, 
+        gameEnergyWindowRect.width, gameEnergyWindowRect.height, 
         SWP_NOZORDER);
 }
 
@@ -1324,6 +1490,7 @@ void DrawOutlinedText(
     int outlinePx,
     UINT format
 ) {
+    SetBkMode(hdc, TRANSPARENT);
     SetTextColor(hdc, outlineColor);
 
     for (int dx = -outlinePx; dx <= outlinePx; dx++) {
@@ -1339,32 +1506,137 @@ void DrawOutlinedText(
     DrawText(hdc, text, -1, rc, format);
 }
 
-
-/*
-void PaintGameDataDisplayWindow() {
-    WindowState* st = (WindowState*)GetWindowLongPtr(windowHandler.gameDataDisplayWindow, GWLP_USERDATA);
+void paintGameEnergyWindow() {
+    WindowState* st = (WindowState*)GetWindowLongPtr(windowHandler.gameEnergyWindow, GWLP_USERDATA);
     PAINTSTRUCT ps;
-    HDC hdc = BeginPaint(windowHandler.gameDataDisplayWindow, &ps);
+    HDC hdc = BeginPaint(windowHandler.gameEnergyWindow, &ps);
+    RECT containerRect; GetClientRect(windowHandler.gameContainerWindow, &containerRect);
+    RECT outerRect; GetClientRect(windowHandler.gameEnergyWindow, &outerRect);
+    
+    RECT innerRect = outerRect;
+    innerRect.left += 10; innerRect.right -= 10;
+    innerRect.top += 10; innerRect.bottom -= 10;
+
+    RECT energyRect = innerRect;
+    int innerHeight = (innerRect.bottom - innerRect.top);
+    double energyPercentage = (double)(gameBoard.energy_level / 100.0);
+    int energyHeight = (int)(innerHeight * energyPercentage);
+    energyRect.top = energyRect.bottom - energyHeight;
+
+    COLORREF green = RGB(0, 255, 0);
+    COLORREF white = RGB(255, 255, 255);
+    COLORREF darkGreen = RGB(2, 87, 2);
+
+    HBRUSH greenBrush = CreateSolidBrush(green);
+    HBRUSH whiteBrush = CreateSolidBrush(white);
+    HBRUSH darkGreenBrush = CreateSolidBrush(darkGreen);
+
+    int savedDCConfig = SaveDC(st->frameDC);
 
     if (st->staticDirty == TRUE) {
-        RECT winRect; GetClientRect(windowHandler.gameDataDisplayWindow, &winRect);
-        FillRect(st->staticDC, &winRect, brushHandler.backgroundBrush);
+        COLORREF black = RGB(0, 0, 0);
+        HBRUSH blackBrush = CreateSolidBrush(black);
+        
+        RECT containerRect = outerRect;
+        containerRect.left += 2; containerRect.right -= 2;
+        containerRect.top += 2; containerRect.bottom -= 2;
+        
+        FillRect(st->staticDC, &outerRect, whiteBrush);
+        FillRect(st->staticDC, &containerRect, blackBrush);
+        DeleteObject(blackBrush);
+
         st->staticDirty = FALSE;
     }
     BitBlt(st->frameDC, 0, 0, st->width, st->height, st->staticDC, 0, 0, SRCCOPY);
 
-    RECT dataDisplayRect; GetClientRect(windowHandler.gameDataDisplayWindow, &dataDisplayRect);
-    int savedDCConfig = SaveDC(st->frameDC);
-    SetBkMode(st->frameDC, TRANSPARENT);
-    SetTextColor(st->frameDC, RGB(255, 255, 255));
-    SelectObject(st->frameDC, gameBoard.scoreFont);
-    DrawText(st->frameDC, gameBoard.score_text, -1, &dataDisplayRect, DT_LEFT | DT_SINGLELINE);
-    RestoreDC(st->frameDC, savedDCConfig);
+    FillRect(st->frameDC, &innerRect, darkGreenBrush);
+    FillRect(st->frameDC, &energyRect, greenBrush);
+    drawEnergyDisplay(st->frameDC, innerRect, innerHeight);
 
     BitBlt(hdc, 0, 0, st->width, st->height, st->frameDC, 0, 0, SRCCOPY);
-    EndPaint(windowHandler.gameDataDisplayWindow, &ps);
+
+    DeleteObject(whiteBrush);
+    DeleteObject(greenBrush);
+    DeleteObject(darkGreenBrush);
+    RestoreDC(st->frameDC, savedDCConfig);
+    EndPaint(windowHandler.gameEnergyWindow, &ps);
 }
-*/
+
+void drawEnergyDisplay(HDC hdc, RECT innerRect, int innerHeight) {
+    int savedDCConfig = SaveDC(hdc);
+    COLORREF white = RGB(255, 255, 255);
+    COLORREF black = RGB(0, 0, 0);
+
+    RECT energyDisplayRect;
+    int innerWidth = (innerRect.right - innerRect.left);
+    int energyDisplayHeight = (innerHeight / 3);
+    int energyDisplayWidth = innerWidth - 4;
+    int left_padding = (innerWidth - energyDisplayWidth) / 2;
+    int top_padding = (innerHeight - energyDisplayHeight) / 2;
+    energyDisplayRect.left = innerRect.left;
+    energyDisplayRect.top = innerRect.top + top_padding;
+    energyDisplayRect.right = innerRect.right;
+    energyDisplayRect.bottom = energyDisplayRect.top + energyDisplayHeight;
+
+    RECT energyValueRect;
+    energyValueRect.left = energyDisplayRect.left;
+    energyValueRect.right = energyDisplayRect.right;
+    int energyValueHeight = energyDisplayHeight * 0.33;
+    energyValueRect.top = energyDisplayRect.bottom + 10;
+    energyValueRect.bottom = energyValueRect.top + energyValueHeight;
+
+    POINT bolt[] = {
+        { 70,  0 },
+        { 50, 45 },
+        { 70, 45 },
+        { 30, 100 },
+        { 45, 55 },
+        { 25, 55 }
+    };
+
+    const int count = sizeof(bolt) / sizeof(bolt[0]);
+
+    // Scale points into RECT
+    POINT pts[count];
+    for (int i = 0; i < count; i++) {
+        pts[i].x = energyDisplayRect.left + (bolt[i].x * energyDisplayWidth) / 100;
+        pts[i].y = energyDisplayRect.top  + (bolt[i].y * energyDisplayHeight) / 100;
+    }
+
+    HPEN blackPen = CreatePen(PS_SOLID, 1, black);
+    HBRUSH whiteBrush = CreateSolidBrush(white);
+    SelectObject(hdc, blackPen);
+    SelectObject(hdc, whiteBrush);
+    Polygon(hdc, pts, count);
+    //Draw outline next
+    for (int i = 0; i < count; i++) {
+        if (i == (count - 1)) {
+            MoveToEx(hdc, pts[i].x, pts[i].y, NULL);
+            LineTo(hdc, pts[0].x, pts[0].y);
+        }
+        else {
+            MoveToEx(hdc, pts[i].x, pts[i].y, NULL);
+            LineTo(hdc, pts[i + 1].x, pts[i + 1].y);
+        }
+    }
+
+    wchar_t energyValueString[5];
+    swprintf(energyValueString, 5, L"%d", gameBoard.energy_level);
+
+    SelectObject(hdc, gameBoard.energyFont);
+
+    DrawOutlinedText(
+        hdc, 
+        energyValueString,
+        &energyValueRect,
+        RGB(255, 255, 255),   // text color
+        RGB(0, 0, 0),     // outline color
+        1,                // outline thickness (1–2 is ideal)
+        DT_CENTER | DT_SINGLELINE
+    );
+
+    RestoreDC(hdc, savedDCConfig);
+}
 
 void animation_game_over(HDC hdc) {
     WindowRECT gameFieldWindowRect = getGameFieldWindowRect();
