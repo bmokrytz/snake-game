@@ -324,7 +324,7 @@ void initializeWindowHandler() {
     windowHandler.mainWindow = NULL;            windowHandler.menuWindow = NULL;
     windowHandler.gameContainerWindow = NULL;   windowHandler.gameFieldWindow = NULL;
     windowHandler.gameDataDisplayWindow = NULL; windowHandler.gameEnergyWindow = NULL;
-    windowHandler.displayMode = DISPLAY_MODE_BORDERLESS;
+    windowHandler.displayMode = DISPLAY_MODE_WINDOWED;
 }
 
 void initializeAnimationHandler() {
@@ -479,11 +479,14 @@ void buildWindows(HINSTANCE hInstance) {
 
 void buildMainWindow(HINSTANCE hInstance) {
     WindowRECT mainWinRect = getMainWindowRect();
+    DWORD winStyle;
+    if (windowHandler.displayMode == DISPLAY_MODE_BORDERLESS) winStyle = WS_POPUP | WS_VISIBLE;
+    else winStyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
     windowHandler.mainWindow = CreateWindowEx(
         0,                              // Optional window styles.
         MAIN_WINDOW_CLASS,                      // Window class
         L"SNAKE",                       // Window text
-        WS_POPUP,            // Window style
+        winStyle,            // Window style
         // Size and position
         mainWinRect.left, mainWinRect.top, 
         mainWinRect.width, mainWinRect.height,
