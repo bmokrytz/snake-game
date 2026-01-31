@@ -1,17 +1,5 @@
-#ifndef ERROR_H
-#define ERROR_H
 
-#include <stdlib.h>
-#include <stdio.h>
-
-// ******************** Function Prototypes ********************
-void logError(const wchar_t * message);
-void logDebugMessage(const wchar_t * message);
-void deleteLogFile(const char *filename);
-void wipeErrorLog();
-void wipeDebugLog();
-void resetLogs();
-/* ************************************************************ */
+#include "log.h"
 
 // ******************** Function Implementations ********************
 void logError(const wchar_t * message) {
@@ -57,5 +45,3 @@ void resetLogs() {
     wipeErrorLog();
 }
 /* ************************************************************ */
-
-#endif

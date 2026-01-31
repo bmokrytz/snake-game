@@ -18,9 +18,9 @@
  */
 
 #include <stdio.h>
-#include "log.h"
 #include <windows.h>
-#include "window.h"
+#include "log.h"
+#include "snakeWin32.h"
 #include "game.h"
 
 /**

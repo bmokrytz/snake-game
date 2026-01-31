@@ -1,236 +1,13 @@
-#ifndef GAME_H
-#define GAME_H
 
+#include "game.h"
 #include <stdlib.h>
 #include <time.h>
-#include <windows.h>
 #include "log.h"
-#include "window.h"
 
-// ******************** Macros ********************
+// ==================== Globals ====================
 
-#ifndef GAME_MACROS
-#define GAME_MACROS
-#define GAMEBOARDWIDTH 600
-#define GAMEBOARDHEIGHT 600
-#define GAMEGRIDROWS 60
-#define GAMEGRIDCOLS 60
-#define SNAKEHEADSTARTX (GAMEGRIDCOLS / 2)
-#define SNAKEHEADSTARTY (GAMEGRIDROWS / 2)
-#define DIRECTION_UP 0
-#define DIRECTION_DOWN 1
-#define DIRECTION_LEFT 2
-#define DIRECTION_RIGHT 3
-#define EATS_FRUIT 4
-#define COLLISION 5
-#define COLLISION_RANGE 1
-#define FRUIT_MARGIN 3
-#define NO_COLLISION 6
-#define PAUSE_GAME 7
-#define START_GAME 8
-#define GAME_OVER 9
-#define ENERGY_DECAY_VALUE 4
-#define ENERGY_REPLENISH_VALUE 4
-
-// Timer macros
-#define GAME_TIMER_NORMAL_SPEED_ID 1
-#define GAME_TIMER_NORMAL_SPEED_VAL 60
-#define GAME_TIMER_SLOW_SPEED_ID 2
-#define GAME_TIMER_SLOW_SPEED_VAL 80
-#define GAME_TIMER_FAST_SPEED_ID 3
-#define GAME_TIMER_FAST_SPEED_VAL 45
-#define GAME_TIMER_BOOST_ID 4
-#define GAME_TIMER_BOOST_VAL 20
-#define GAME_TIMER_BOOST_RECHARGE_ID 5
-#define GAME_TIMER_BOOST_RECHARGE_VAL 400
-
-#endif
-
-/* ************************************************************ */
-
-// ******************** Structs ********************
-
-/**
- * @brief Represents a simple 2D coordinate pair.
- *
- * Useful for passing positions without referencing full grid cells or nodes.
- */
-typedef struct Coord {
-    int x; /**< X-coordinate value. */
-    int y; /**< Y-coordinate value. */
-} Coord;
-
-/**
- * @brief Defines the rectangular bounds and dimensions of the game board in pixels.
- *
- * Used to describe the visible or logical area where the game grid is drawn.
- */
-typedef struct GameBoardRect {
-    int top;      /**< Top boundary (Y-coordinate). */
-    int bottom;   /**< Bottom boundary (Y-coordinate). */
-    int left;     /**< Left boundary (X-coordinate). */
-    int right;    /**< Right boundary (X-coordinate). */
-    int width;    /**< Total width of the game board in pixels. */
-    int height;   /**< Total height of the game board in pixels. */
-} GameBoardRect;
-
-/**
- * @brief Represents a single cell within the game grid.
- *
- * Each cell stores its grid coordinates and flags that describe
- * what occupies it (snake body, head, wall, or fruit).
- */
-typedef struct GridCell {
-    int x;              /**< Row position of the cell in the grid. */
-    int y;              /**< Column position of the cell in the grid. */
-    int containsHead;   /**< 1 if the snake's head is in this cell, otherwise 0. */
-    int containsSnake;  /**< 1 if a snake body segment occupies this cell. */
-    int containsWall;   /**< 1 if this cell represents a wall or border. */
-    int containsFruit;  /**< 1 if a fruit is placed in this cell. */
-} GridCell;
-
-/**
- * @brief A 2D array type representing the full game grid.
- */
-typedef GridCell** GameBoardGrid;
-
-/**
- * @brief Holds all data related to the game board, including the grid and its dimensions.
- *
- * Contains references to the grid structure, its size in rows and columns,
- * and metadata needed for rendering (window handle, pixel cell size, etc.).
- */
-typedef struct GameBoard {
-    HWND window;            /**< Handle to the game window (Win32). */
-    GameBoardRect rect;     /**< Pixel boundaries of the game area. */
-    GameBoardGrid grid;     /**< 2D array representing all grid cells. */
-    int grid_rows;          /**< Number of grid rows. */
-    int grid_cols;          /**< Number of grid columns. */
-    int cell_width;         /**< Width of each cell in pixels. */
-    int cell_height;        /**< Height of each cell in pixels. */
-    int score;
-    int score_increment;
-    BOOL update_score;
-    int gameStatus;
-    int game_timer_id;
-    Coord fruitLoc;
-    HFONT scoreFont;
-    HFONT energyFont;
-    wchar_t score_label[10];
-    wchar_t score_text[20];
-    int energy_level;
-} GameBoard;
-
-/**
- * @brief Represents a single node (segment) of the snake's body.
- *
- * Each node stores its current and previous positions, as well as
- * pointers to adjacent nodes in the doubly linked list.
- */
-typedef struct SnakeNode {
-    int x;                     /**< Current X-coordinate (column index). */
-    int y;                     /**< Current Y-coordinate (row index). */
-    int prev_x;                /**< Previous X-coordinate before movement. */
-    int prev_y;                /**< Previous Y-coordinate before movement. */
-    struct SnakeNode* prevNode;/**< Pointer to the previous node in the list. */
-    struct SnakeNode* nextNode;/**< Pointer to the next node in the list. */
-} SnakeNode;
-
-/**
- * @brief Represents the snake's head and direction of movement.
- *
- * Contains a pointer to the head node of the snake's linked body
- * and an integer indicating its current movement direction.
- */
-typedef struct SnakeHead {
-    SnakeNode* node;       /**< Pointer to the head node of the snake. */
-    int movement_direction;/**< Current movement direction (e.g., up, down, left, right). */
-    int node_diameter;
-    BOOL boost;
-    BOOL boost_depleted;
-    BOOL boost_recharging;
-} SnakeHead;
-
-/* ************************************************************ */
-
-// ******************** Global Variables ********************
-
-/**
- * @brief Represents the current game board state.
- *
- * Holds the grid, its dimensions, and related information
- * that defines the playable area and its contents.
- *
- * @see GameBoard
- */
 GameBoard gameBoard;
-
-/**
- * @brief Represents the snake's head and movement state.
- *
- * Stores the head position, direction, and links to the rest
- * of the snake's body segments.
- *
- * @see SnakeHead
- */
 SnakeHead snake;
-
-/* ************************************************************ */
-
-// ******************** Function Prototypes ********************
-
-/*   --- Setup ---   */
-void gameSetup(); // - Wrapper
-void initializeGame();
-void initializeGameGrid();
-void initializeRand();
-void initializeSnake();
-void initializeFruit();
-void initializeCellAndNodeData();
-SnakeNode* createSnakeNode(SnakeNode config);
-/*   -------------   */
-
-/*   --- Game Loop ---   */
-void generateNextFrame(HWND hwnd); // - Wrapper
-void togglePause(HWND hwnd);
-void setBoost(HWND hwnd);
-void disableBoost(HWND hwnd);
-void setBoostDepleted(HWND hwnd);
-void updateEnergyLevel(HWND hwnd);
-void startBoostRecharge(HWND hwnd);
-void stopBoostRecharge(HWND hwnd);
-void generateFruit(HWND hwnd);
-Coord generateCoordinate();
-void eatFruit(HWND hwnd);
-void extendSnake(HWND hwnd);
-void moveSnake(HWND hwnd);
-void changeSnakeDirection(int direction);
-void incrementScore();
-int collisionCheck();
-/*   -------------   */
-
-/*   --- Utility ---   */
-int getGameBoardCellWidth();
-int getGameBoardCellHeight();
-void setGameSpeed(int gameTimerID);
-GameBoardRect getGameboardRect();
-void updateGameboard(RECT mainWindowRect);
-RECT getCellBoundingRect(int x, int y);
-RECT getNodeBoundingRect(int x, int y);
-RECT getNodeInvalidationRect(int x, int y);
-void setGameTimer(HWND hwnd, int gameTimerID);
-void disableGameTimer(HWND hwnd, int gameTimerID);
-/*   -------------   */
-
-/*   --- Clean Up ---   */
-void freeGameData(); // - Wrapper
-void freeSnake();
-void resetGame(HWND hwnd);
-void resetGameGrid();
-void resetSnake();
-/*   -------------   */
-
-/* ************************************************************ */
 
 
 // ******************** Function Implementations ********************
@@ -804,16 +581,12 @@ int collisionCheck() {
 }
 
 void resetGame(HWND hwnd) {
-    logDebugMessage(L"Starting resetGame();...\n");
     gameBoard.score = 0;
+    gameBoard.energy_level = 100;
     resetGameGrid();
-    logDebugMessage(L"Returned from  resetGameGrid();...\n");
     resetSnake();
-    logDebugMessage(L"Returned from  resetSnake();...\n");
     gameBoard.grid[gameBoard.fruitLoc.x][gameBoard.fruitLoc.y].containsFruit = 0;
     generateFruit(hwnd);
-    logDebugMessage(L"Returned from  generateFruit();...\n");
-    logDebugMessage(L"\n\n");
     RECT wndRect; GetClientRect(hwnd, &wndRect);
     InvalidateRect(hwnd, &wndRect, TRUE);
 }
@@ -1084,5 +857,3 @@ void resetSnake() {
 }
 
 /* ************************************************************ */
-
-#endif

@@ -1,13 +1,20 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -g
+CFLAGS = -Wall -Wextra -g -Iinclude
 LDFLAGS = -mwindows -municode
+LIBS = -lmsimg32
+
 OUTPUT = snake.exe
-SRC = snake.c
+
+SRC = src/main.c src/game.c src/snakeWin32.c src/log.c
+OBJ = $(SRC:.c=.o)
 
 all: $(OUTPUT)
 
-$(OUTPUT): $(SRC)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(SRC) -o $(OUTPUT) -lmsimg32
+$(OUTPUT): $(OBJ)
+	$(CC) $(OBJ) -o $@ $(LDFLAGS) $(LIBS)
+
+src/%.o: src/%.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm $(OUTPUT)
+	rm -f $(OBJ) $(OUTPUT)

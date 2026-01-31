@@ -4,3 +4,4 @@ Doxyfile
 debug_log.txt
 snake.exe
 output/
+*.o
