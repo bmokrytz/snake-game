@@ -18,10 +18,8 @@
  */
 
 #include <stdio.h>
+#include "platform.h"
 #include <windows.h>
-#include "log.h"
-#include "snakeWin32.h"
-#include "game.h"
 
 /**
  * @brief The Win32 application entry point for the Snake game.
@@ -45,17 +43,22 @@
  * @see ShowWindow()
  * @see SetTimer()
  */
+
+
+
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {
-    resetLogs();
-    gameSetup();
-    windowSetup(hInstance);
-    MSG msg = { };
-    while (GetMessage(&msg, NULL, 0, 0) > 0)
-    {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+    (void)hPrevInstance;
+    (void)pCmdLine;
+
+    platformResetLogs();
+    gameSetup();      // pure game state init (no Win32)
+
+    if (!platformInit(hInstance, nCmdShow)) {
+        // If you want, logError(L"platformInit failed\n");
+        return 1;
     }
+
+    // platformInit returns after WM_QUIT / shutdown.
     return 0;
 }
-

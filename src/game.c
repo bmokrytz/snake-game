@@ -2,7 +2,7 @@
 #include "game.h"
 #include <stdlib.h>
 #include <time.h>
-#include "log.h"
+#include "platform.h"
 
 // ==================== Globals ====================
 
