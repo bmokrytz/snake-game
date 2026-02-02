@@ -1,8 +1,6 @@
 #ifndef GAME_H
 #define GAME_H
 
-#include <windows.h>  // required because GameBoard exposes HWND/HFONT/RECT and API uses HWND
-
 // ==================== Public Constants ====================
 
 // Board / grid
@@ -158,8 +156,6 @@ void disableBoost(HWND hwnd);
 void setBoostDepleted(HWND hwnd);
 
 void updateEnergyLevel(HWND hwnd);
-void startBoostRecharge(HWND hwnd);
-void stopBoostRecharge(HWND hwnd);
 
 void generateFruit(HWND hwnd);
 Coord generateCoordinate(void);

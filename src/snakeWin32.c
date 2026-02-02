@@ -1,5 +1,6 @@
 
 #include "snakeWin32.h"
+#include "platform.h"
 
 // ==================== Globals ====================
 
@@ -7,6 +8,7 @@ WindowHandler windowHandler;
 BrushHandler brushHandler;
 AnimationHandler animationHandler;
 int counter = 0;
+static onWindowCloseCallbackFn global_onClose = NULL;
 
 static void repaintAllWindows();
 static void resizeAllWindows();
@@ -545,7 +547,7 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         case WM_DESTROY:
         {
             windowCleanUp();
-            freeGameData();
+            global_onClose();
             PostQuitMessage(0);
             return 0;
         }
@@ -621,9 +623,9 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                 }
                 case ID_RESET_GAME:
                 {
-                    gameBoard.gameStatus = PAUSE_GAME;
+                    platform_SetGameStatus_pauseGame();
                     resetGame(windowHandler.gameFieldWindow);
-                    swprintf(gameBoard.score_text, 20, L"%s%d", gameBoard.score_label, gameBoard.score);
+                    platform_UpdateScoreText();
                     InvalidateRect(windowHandler.gameContainerWindow, NULL, TRUE);
                     InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
                 }
@@ -667,34 +669,27 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         }
         case WM_KEYDOWN:
         {
-            
-            if (wParam == 'W' || wParam == 'w' || wParam == VK_UP) {
-                if (gameBoard.gameStatus != PAUSE_GAME) {
-                    changeSnakeDirection(DIRECTION_UP);
+            if (!platform_IsPauseGame()) {
+                if (wParam == 'W' || wParam == 'w' || wParam == VK_UP) {
+                    platform_SetDirection(DIRECTION_UP);
                 }
-            }
-            else if (wParam == 'A' || wParam == 'a' || wParam == VK_LEFT) {
-                if (gameBoard.gameStatus != PAUSE_GAME) {
-                    changeSnakeDirection(DIRECTION_LEFT);
+                else if (wParam == 'A' || wParam == 'a' || wParam == VK_LEFT) {
+                    platform_SetDirection(DIRECTION_LEFT);
                 }
-            }
-            else if (wParam == 'S' || wParam == 's' || wParam == VK_DOWN) {
-                if (gameBoard.gameStatus != PAUSE_GAME) {
-                    changeSnakeDirection(DIRECTION_DOWN);
+                else if (wParam == 'S' || wParam == 's' || wParam == VK_DOWN) {
+                    platform_SetDirection(DIRECTION_DOWN);
                 }
-            }
-            else if (wParam == 'D' || wParam == 'd' || wParam == VK_RIGHT) {
-                if (gameBoard.gameStatus != PAUSE_GAME) {
-                    changeSnakeDirection(DIRECTION_RIGHT);
+                else if (wParam == 'D' || wParam == 'd' || wParam == VK_RIGHT) {
+                    platform_SetDirection(DIRECTION_RIGHT);
                 }
             }
             else if (wParam == VK_RETURN) {
                 togglePause(windowHandler.mainWindow);
             }
             else if (wParam == VK_SHIFT) {
-                if (snake.boost_depleted == FALSE) {
+                if (!platform_IsBoostDepleted()) {
                     setBoost(windowHandler.mainWindow);
-                    if (snake.boost_recharging == TRUE) {
+                    if (platform_IsBoostRecharging()) {
                         stopBoostRecharge(windowHandler.mainWindow);
                     }
                 }
@@ -724,7 +719,7 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                                 InvalidateRect(windowHandler.gameDataDisplayWindow, NULL, TRUE);
                                 gameBoard.update_score = FALSE;
                             }
-                            generateNextFrame(windowHandler.gameFieldWindow);
+                            platform_GenerateNextFrame(windowHandler.gameFieldWindow);
                         }
                         if (gameBoard.gameStatus == GAME_OVER) {
                             InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
@@ -740,7 +735,7 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                                     InvalidateRect(windowHandler.gameDataDisplayWindow, NULL, TRUE);
                                     gameBoard.update_score = FALSE;
                                 }
-                                generateNextFrame(windowHandler.gameFieldWindow);
+                                platform_GenerateNextFrame(windowHandler.gameFieldWindow);
                             }
                             else {
                                 setBoostDepleted(windowHandler.mainWindow);
@@ -955,6 +950,10 @@ void initializeBrushes() {
     brushHandler.fieldBrush = CreateSolidBrush(COLOR_SNAKEGAME_GAMEFIELD);
     brushHandler.snakeBrush = CreateSolidBrush(COLOR_SNAKEGAME_SNAKE);
     brushHandler.fruitBrush = CreateSolidBrush(COLOR_SNAKEGAME_FRUIT);
+}
+
+void win32SetOnCloseCallback(onWindowCloseCallbackFn fn) {
+    global_onClose = fn;
 }
 
 /*----------------------------------------------------------------------------*/

@@ -26,8 +26,6 @@
 #endif
 
 #include <windows.h>
-#include "game.h"
-#include "log.h"
 
 // ==================== Public Constants ====================
 
@@ -76,6 +74,12 @@
 #define FAST_TICK_SPEED_TIMER_VAL 45
 #define ANIMATION_TIMER_ID 4
 #define ANIMATION_TIMER_VAL 45
+
+// Directions
+#define DIRECTION_UP     0
+#define DIRECTION_DOWN   1
+#define DIRECTION_LEFT   2
+#define DIRECTION_RIGHT  3
 
 // ==================== Types ====================
 
@@ -145,7 +149,7 @@ typedef struct WindowState {
     BOOL    staticDirty;
 } WindowState;
 
-
+typedef void (*onWindowCloseCallbackFn)(void);
 
 /*==============================================================================
  *                           GLOBAL  VARIABLES
@@ -193,6 +197,7 @@ WindowRECT getGameFieldWindowRect();
 WindowRECT getGameEnergyWindowRect();
 HWND createButton(ButtonConfig config);
 void initializeBrushes();
+void win32SetOnCloseCallback(onWindowCloseCallbackFn fn);
 
 /*----------------------------------------------------------------------------*/
 /*                             Window Procedure                               */
