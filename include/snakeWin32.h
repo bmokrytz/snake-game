@@ -68,12 +68,6 @@
 // Timer
 #define NORMAL_TICK_SPEED_TIMER_ID 1
 #define NORMAL_TICK_SPEED_TIMER_VAL 45
-#define SLOW_TICK_SPEED_TIMER_ID 2
-#define SLOW_TICK_SPEED_TIMER_VAL 45
-#define FAST_TICK_SPEED_TIMER_ID 3
-#define FAST_TICK_SPEED_TIMER_VAL 45
-#define ANIMATION_TIMER_ID 4
-#define ANIMATION_TIMER_VAL 45
 
 // Directions
 #define DIRECTION_UP     0
@@ -177,6 +171,7 @@ extern int counter;
 void windowSetup(HINSTANCE hInstance);
 void initializeWindowHandler();
 void initializeAnimationHandler();
+void loadSingleFont(LPCSTR name, DWORD  fl, PVOID  res);
 void loadFonts();
 void RegisterWindowClass(HINSTANCE hInstance, const wchar_t *className, WNDPROC windowProc);
 void setWindowConfigs();

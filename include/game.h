@@ -121,7 +121,6 @@ typedef struct SnakeHead {
     int node_diameter;
 
     BOOL boost;
-    BOOL boost_depleted;
     BOOL boost_recharging;
 } SnakeHead;
 
@@ -151,9 +150,8 @@ SnakeNode* createSnakeNode(SnakeNode config);
 void generateNextFrame(HWND hwnd);    // wrapper
 void togglePause(HWND hwnd);
 
-void setBoost(HWND hwnd);
+void enableBoost(HWND hwnd);
 void disableBoost(HWND hwnd);
-void setBoostDepleted(HWND hwnd);
 
 void updateEnergyLevel(HWND hwnd);
 
@@ -176,10 +174,6 @@ void setGameSpeed(int gameTimerID);
 GameBoardRect getGameboardRect(void);
 
 void updateGameboard(RECT mainWindowRect);
-
-RECT getCellBoundingRect(int x, int y);
-RECT getNodeBoundingRect(int x, int y);
-RECT getNodeInvalidationRect(int x, int y);
 
 void setGameTimer(HWND hwnd, int gameTimerID);
 void disableGameTimer(HWND hwnd, int gameTimerID);
