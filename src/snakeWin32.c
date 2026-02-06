@@ -1,4 +1,5 @@
 
+#include <stdio.h>
 #include "snakeWin32.h"
 #include "platform.h"
 
@@ -49,7 +50,7 @@ void initializeAnimationHandler() {
     animationHandler.gameOver_ttl = 0;
 }
 
-void loadSingleFont(LPCSTR name, DWORD  fl, PVOID  res) {
+void loadSingleFont(LPCWSTR name, DWORD  fl, PVOID  res) {
     int fontsLoaded = AddFontResourceEx(name, fl, res);
     if (fontsLoaded == 0) platform_LogErrorMessage("Error loading font.\n\tFont loading failed.\n");
 }
@@ -74,6 +75,7 @@ void loadFonts() {
         VARIABLE_PITCH,
         TEXT("Jersey 25")
     );
+    platform_LoadScoreFont(scoreFont);
     if (platform_IsScoreFontNull()) {
         platform_LogErrorMessage("Error creating font (gameBoard.scoreFont) in windowSetup().\n\tFont creation failed.\n");
     }
@@ -94,6 +96,7 @@ void loadFonts() {
         VARIABLE_PITCH,
         TEXT("Jersey 25")
     );
+    platform_LoadEnergyFont(energyFont);
     if (platform_IsEnergyFontNull()) {
         platform_LogErrorMessage("Error creating font (gameBoard.energyFont) in windowSetup().\n\tFont creation failed.\n");
     }
@@ -142,13 +145,13 @@ void buildWindows(HINSTANCE hInstance) {
 
     buildMainWindow(hInstance);
     if (windowHandler.mainWindow == NULL) {
-        logError(L"Error in function buildWindows() of snakeWin32.h.\n\tmainWindow == NULL. Window creation failed.\n");
+        platform_LogErrorMessage("Error in function buildWindows() of snakeWin32.h.\n\tmainWindow == NULL. Window creation failed.\n");
     }
-    updateGameboardPos();
-    initializeCellAndNodeData();
+    platform_UpdateGameboardPosition();
+    platform_InitializeCellAndNodeData();
     buildMenuWindow(hInstance);
     if (windowHandler.menuWindow == NULL) {
-        logError(L"Error in function buildWindows() of snakeWin32.h.\n\tmenuWindow == NULL. Window creation failed.\n");
+        platform_LogErrorMessage("Error in function buildWindows() of snakeWin32.h.\n\tmenuWindow == NULL. Window creation failed.\n");
     }
     buildGameWindows(hInstance);
     ShowWindow(windowHandler.mainWindow, SW_SHOW);
@@ -249,19 +252,19 @@ WindowRECT getMenuWindowRect() {
 void buildGameWindows(HINSTANCE hInstance) {
     buildGameContainerWindow(hInstance);
     if (windowHandler.gameContainerWindow == NULL) {
-        logError(L"Error in function buildGameWindows() of snakeWin32.h.\n\tgameContainerWindow == NULL. Window creation failed.\n");
+        platform_LogErrorMessage("Error in function buildGameWindows() of snakeWin32.h.\n\tgameContainerWindow == NULL. Window creation failed.\n");
     }
     buildGameDataDisplayWindow(hInstance);
     if (windowHandler.gameDataDisplayWindow == NULL) {
-        logError(L"Error in function buildGameWindows() of snakeWin32.h.\n\tgameDataDisplayWindow == NULL. Window creation failed.\n");
+        platform_LogErrorMessage("Error in function buildGameWindows() of snakeWin32.h.\n\tgameDataDisplayWindow == NULL. Window creation failed.\n");
     }
     buildGameFieldWindow(hInstance);
     if (windowHandler.gameFieldWindow == NULL) {
-        logError(L"Error in function buildGameWindows() of snakeWin32.h.\n\tgameFieldWindow == NULL. Window creation failed.\n");
+        platform_LogErrorMessage("Error in function buildGameWindows() of snakeWin32.h.\n\tgameFieldWindow == NULL. Window creation failed.\n");
     }
     buildGameEnergyWindow(hInstance);
     if (windowHandler.gameEnergyWindow == NULL) {
-        logError(L"Error in function buildGameWindows() of snakeWin32.h.\n\tgameEnergyWindow == NULL. Window creation failed.\n");
+        platform_LogErrorMessage("Error in function buildGameWindows() of snakeWin32.h.\n\tgameEnergyWindow == NULL. Window creation failed.\n");
     }
 }
 
@@ -419,41 +422,6 @@ HWND createButton(ButtonConfig config) {
         NULL);
 }
 
-void debugDropWindowedConfig() {
-    wchar_t msg[700];
-    swprintf(msg, 700, L"Window Config:\n");
-    swprintf(msg, 700, L"%swindowHandler.windowedConfig.left = %d. windowHandler.windowedConfig.top = %d.\n", msg, windowHandler.windowedConfig.left, windowHandler.windowedConfig.top);
-    swprintf(msg, 700, L"%swindowHandler.windowedConfig.width = %d. windowHandler.windowedConfig.height = %d.\n\n", msg, windowHandler.windowedConfig.width, windowHandler.windowedConfig.height);
-    logDebugMessage(msg);
-}
-
-void debugDropMainWindowSizePosition() {
-    wchar_t msg[700];
-    WindowRECT mainWindowRect = getMainWindowRect();
-    swprintf(msg, 700, L"Main Window:\n");
-    swprintf(msg, 700, L"%smainWindowRect.left = %d. mainWindowRect.top = %d.\n", msg, mainWindowRect.left, mainWindowRect.top);
-    swprintf(msg, 700, L"%smainWindowRect.right = %d. mainWindowRect.bottom = %d.\n", msg, mainWindowRect.right, mainWindowRect.bottom);
-    swprintf(msg, 700, L"%smainWindowRect.width = %d. mainWindowRect.height = %d.\n\n", msg, mainWindowRect.width, mainWindowRect.height);
-    logDebugMessage(msg);
-}
-
-void debugLogRECT(RECT rect) {
-    wchar_t msg[700];
-    swprintf(msg, 700, L"\tRECT:\n");
-    swprintf(msg, 700, L"%s\t\trect.left = %d. rect.top = %d.\n", msg, rect.left, rect.top);
-    swprintf(msg, 700, L"%s\t\trect.right = %d. rect.bottom = %d.\n", msg, rect.right, rect.bottom);
-    logDebugMessage(msg);
-}
-
-void debugLogWindowRECT(WindowRECT windowRect) {
-    wchar_t msg[700];
-    swprintf(msg, 700, L"\twindowRECT:\n");
-    swprintf(msg, 700, L"%s\t\twindowRect.left = %d. windowRect.top = %d.\n", msg, windowRect.left, windowRect.top);
-    swprintf(msg, 700, L"%s\t\twindowRect.right = %d. windowRect.bottom = %d.\n", msg, windowRect.right, windowRect.bottom);
-    swprintf(msg, 700, L"%s\t\twindowRect.width = %d. windowRect.height = %d.\n", msg, windowRect.width, windowRect.height);
-    logDebugMessage(msg);
-}
-
 
 LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -539,7 +507,7 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                 case ID_RESET_GAME:
                 {
                     platform_SetGameStatus_pauseGame();
-                    resetGame(windowHandler.gameFieldWindow);
+                    platform_ResetGame();
                     platform_UpdateScoreText();
                     InvalidateRect(windowHandler.gameContainerWindow, NULL, TRUE);
                     InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
@@ -584,17 +552,23 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         }
         case WM_KEYDOWN:
         {
-            if (!platform_IsPauseGame()) {
-                if (wParam == 'W' || wParam == 'w' || wParam == VK_UP) {
+            if (wParam == 'W' || wParam == 'w' || wParam == VK_UP) {
+                if (!platform_IsPauseGame()) {
                     platform_SetDirection(DIRECTION_UP);
                 }
-                else if (wParam == 'A' || wParam == 'a' || wParam == VK_LEFT) {
+            }
+            else if (wParam == 'A' || wParam == 'a' || wParam == VK_LEFT) {
+                if (!platform_IsPauseGame()) {
                     platform_SetDirection(DIRECTION_LEFT);
                 }
-                else if (wParam == 'S' || wParam == 's' || wParam == VK_DOWN) {
+            }
+            else if (wParam == 'S' || wParam == 's' || wParam == VK_DOWN) {
+                if (!platform_IsPauseGame()) {
                     platform_SetDirection(DIRECTION_DOWN);
                 }
-                else if (wParam == 'D' || wParam == 'd' || wParam == VK_RIGHT) {
+            }
+            else if (wParam == 'D' || wParam == 'd' || wParam == VK_RIGHT) {
+                if (!platform_IsPauseGame()) {
                     platform_SetDirection(DIRECTION_RIGHT);
                 }
             }
@@ -614,9 +588,9 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         case WM_KEYUP:
         {
             if (wParam == VK_SHIFT) {
-                disableBoost(windowHandler.mainWindow);
+                platform_DisableBoost();
                 if (!platform_IsBoostRecharging()) {
-                    startBoostRecharge(windowHandler.mainWindow);
+                    platform_EnableBoostRecharge();
                 }
             }
         }
@@ -624,46 +598,42 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         {
             UINT_PTR timer_val = (UINT_PTR)wParam;
             switch (timer_val) {
-                case NORMAL_TICK_SPEED_TIMER_ID:
+                case GAME_TIMER_NORMAL_SPEED_ID:
                     if (!platform_IsBoost()) {
                         if (platform_IsStartGame()) {
                             if (platform_IsUpdateScore()) {
-                                InvalidateRect(windowHandler.gameDataDisplayWindow, NULL, TRUE);
-                                platform_ToggleUpdateScore();
+                                platform_UpdateScoreDisplay();
                             }
                             platform_GenerateNextFrame(windowHandler.gameFieldWindow);
                         }
                         if (platform_IsGameOver()) {
-                            InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
+                            platform_UpdateGameFieldWindow();
                         }
-                        InvalidateRect(windowHandler.gameEnergyWindow, NULL, TRUE);
+                        platform_RepaintEnergyDisplay();
                     }
                     break;
                 case GAME_TIMER_BOOST_ID:
-                    if (snake.boost == TRUE) {
-                        if (gameBoard.gameStatus == START_GAME && snake.boost == TRUE) {
-                            if (gameBoard.energy_level > 0) {
-                                if (gameBoard.update_score == TRUE) {
-                                    InvalidateRect(windowHandler.gameDataDisplayWindow, NULL, TRUE);
-                                    gameBoard.update_score = FALSE;
+                    if (platform_IsBoost()) {
+                        if (platform_IsStartGame()) {
+                            if (!platform_IsBoostDepleted()) {
+                                if (platform_IsUpdateScore()) {
+                                    platform_UpdateScoreDisplay();
                                 }
                                 platform_GenerateNextFrame(windowHandler.gameFieldWindow);
                             }
                             else {
-                                setBoostDepleted(windowHandler.mainWindow);
-                                startBoostRecharge(windowHandler.mainWindow);
+                                platform_EnableBoostRecharge();
                             }
                         }
-                        if (gameBoard.gameStatus == GAME_OVER) {
-                            InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
+                        if (platform_IsGameOver()) {
+                            platform_UpdateGameFieldWindow();
                         }
-                        updateEnergyLevel(windowHandler.mainWindow);
-                        InvalidateRect(windowHandler.gameEnergyWindow, NULL, TRUE);
+                        platform_UpdateEnergy();
                     }
                     break;
                 case GAME_TIMER_BOOST_RECHARGE_ID:
-                    if (snake.boost_recharging == TRUE) {
-                        updateEnergyLevel(windowHandler.mainWindow);
+                    if (platform_IsBoostRecharging()) {
+                        platform_UpdateEnergy();
                     }
                     break;
             }
@@ -672,7 +642,7 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         case WM_SIZE:
         {
             if (hwnd == windowHandler.mainWindow) {
-                updateGameboardPos();
+                platform_UpdateGameboardWindow();
             }
             resizeAllWindows();
             resizeAllWindowBackbuffers(hwnd);
@@ -857,14 +827,6 @@ void win32SetOnCloseCallback(onWindowCloseCallbackFn fn) {
 /*----------------------------------------------------------------------------*/
 
 
-void updateGameboardPos() {
-    RECT mainWindowRect;
-    GetClientRect(windowHandler.mainWindow, &mainWindowRect);
-    updateGameboard(mainWindowRect);
-    GameBoardRect gameboardRect = getGameboardRect();
-    MoveWindow(windowHandler.gameFieldWindow, gameboardRect.left, gameboardRect.top, gameboardRect.width, gameboardRect.height, TRUE);
-}
-
 void updateDisplayMode() {
     HWND hwndForeground = GetForegroundWindow();
     if (windowHandler.displayMode == DISPLAY_MODE_BORDERLESS) {
@@ -946,14 +908,15 @@ void PaintGameDataDisplayWindow() {
         FillRect(st->staticDC, &winRect, brushHandler.backgroundBrush);
         st->staticDirty = FALSE;
     }
+
     BitBlt(st->frameDC, 0, 0, st->width, st->height, st->staticDC, 0, 0, SRCCOPY);
 
     RECT dataDisplayRect; GetClientRect(windowHandler.gameDataDisplayWindow, &dataDisplayRect);
     int savedDCConfig = SaveDC(st->frameDC);
     SetBkMode(st->frameDC, TRANSPARENT);
     SetTextColor(st->frameDC, RGB(255, 255, 255));
-    SelectObject(st->frameDC, gameBoard.scoreFont);
-    DrawText(st->frameDC, gameBoard.score_text, -1, &dataDisplayRect, DT_LEFT | DT_SINGLELINE);
+    SelectObject(st->frameDC, platform_GetGameScoreFont());
+    DrawText(st->frameDC, platform_GetGameScoreText(), -1, &dataDisplayRect, DT_LEFT | DT_SINGLELINE);
     RestoreDC(st->frameDC, savedDCConfig);
 
     BitBlt(hdc, 0, 0, st->width, st->height, st->frameDC, 0, 0, SRCCOPY);
@@ -978,10 +941,10 @@ void paintGameFieldWindow() {
     drawSnake(st->frameDC);
     drawFruit(st->frameDC);
 
-    if (gameBoard.gameStatus == GAME_OVER) {
+    if (platform_IsGameOver()) {
         int savedDCConfig = SaveDC(st->frameDC);
         SetBkMode(st->frameDC, TRANSPARENT);
-        SelectObject(st->frameDC, gameBoard.scoreFont);
+        SelectObject(st->frameDC, platform_GetGameScoreFont());
 
         DrawOutlinedText(
             st->frameDC, 
@@ -1038,7 +1001,7 @@ void paintGameEnergyWindow() {
 
     RECT energyRect = innerRect;
     int innerHeight = (innerRect.bottom - innerRect.top);
-    double energyPercentage = (double)(gameBoard.energy_level / 100.0);
+    double energyPercentage = (double)(platform_GetGameEnergyLevel() / 100.0);
     int energyHeight = (int)(innerHeight * energyPercentage);
     energyRect.top = energyRect.bottom - energyHeight;
 
@@ -1140,9 +1103,9 @@ void drawEnergyDisplay(HDC hdc, RECT innerRect, int innerHeight) {
     }
 
     wchar_t energyValueString[5];
-    swprintf(energyValueString, 5, L"%d", gameBoard.energy_level);
+    swprintf(energyValueString, 5, L"%d", platform_GetGameEnergyLevel());
 
-    SelectObject(hdc, gameBoard.energyFont);
+    SelectObject(hdc, platform_GetGameEnergyFont());
 
     DrawOutlinedText(
         hdc, 
@@ -1178,7 +1141,7 @@ void animation_game_over(HDC hdc) {
     HPEN hOldPen = SelectObject(hdc, hPen);
 
     Ellipse(hdc, animationRect.left, animationRect.top, animationRect.right, animationRect.bottom);
-
+ 
     SelectObject(hdc, hOldPen);
     SelectObject(hdc, hOldBrush);
     DeleteObject(hPen);
@@ -1188,15 +1151,16 @@ void animation_game_over(HDC hdc) {
 
 
 void drawSnake(HDC hdc) {
-    if (snake.node == NULL) {
-        logError(L"Error in function drawSnake(HDC hdc) of snakeWin32.h.\n\tsnake.node == NULL\n");
+    if (platform_IsSnakeNull()) {
+        platform_LogErrorMessage("Error in function drawSnake(HDC hdc) of snakeWin32.h.\n\tplatform_IsSnakeNull() == TRUE\n");
     }
-    SnakeNode* node = snake.node;
     HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, brushHandler.snakeBrush);
-    while (node != NULL) {
-        RECT node_bounds = getNodeBoundingRect(node->x, node->y);
-        drawCircle(hdc, node_bounds);
-        node = node->nextNode;
+    platform_ResetSnakeNodeIterator();
+    RECT snakeCoordRect = platform_GetNodeBoundingRect(platform_GetSnakeNodeIteratorCoord());
+    drawCircle(hdc, snakeCoordRect);
+    while (platform_IncrementSnakeNodeIterator()) {
+        RECT snakeCoordRect = platform_GetNodeBoundingRect(platform_GetSnakeNodeIteratorCoord());
+        drawCircle(hdc, snakeCoordRect);
     }
     SelectObject(hdc, oldBrush);
 }
@@ -1210,14 +1174,14 @@ void drawGameField(RECT field, HDC hdc) {
 void drawWalls(HDC hdc) {
     HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, brushHandler.wallBrush);
     for (int i = 1; i <= GAMEGRIDCOLS; i++) {
-        RECT cell_bounds = getCellBoundingRect(i, 1);
+        RECT cell_bounds = platform_GetCellBoundingRect((Coord){i, 1});
         FillRect(hdc, &cell_bounds, brushHandler.wallBrush);
-        cell_bounds = getCellBoundingRect(i, GAMEGRIDCOLS);
+        cell_bounds = platform_GetCellBoundingRect((Coord){i, GAMEGRIDCOLS});
         FillRect(hdc, &cell_bounds, brushHandler.wallBrush);
 
-        cell_bounds = getCellBoundingRect(1, i);
+        cell_bounds = platform_GetCellBoundingRect((Coord){1, i});
         FillRect(hdc, &cell_bounds, brushHandler.wallBrush);
-        cell_bounds = getCellBoundingRect(GAMEGRIDCOLS, i);
+        cell_bounds = platform_GetCellBoundingRect((Coord){GAMEGRIDCOLS, i});
         FillRect(hdc, &cell_bounds, brushHandler.wallBrush);
     }
     SelectObject(hdc, oldBrush);
@@ -1227,7 +1191,7 @@ void drawFruit(HDC hdc) {
     // --- Fruit body (orange) ---
     HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, brushHandler.fruitBrush);
 
-    RECT fruit_bounds = getNodeBoundingRect(gameBoard.fruitLoc.x, gameBoard.fruitLoc.y);
+    RECT fruit_bounds = platform_GetNodeBoundingRect(platform_GetFruitCoord());
 
     Ellipse(hdc, fruit_bounds.left, fruit_bounds.top, fruit_bounds.right, fruit_bounds.bottom);
 
@@ -1257,17 +1221,17 @@ void drawDebugGrid(RECT field, HDC hdc) {
     HPEN hPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
     HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
 
-    int cell_width = getGameBoardCellWidth();
-    int cell_height = getGameBoardCellHeight();
+    int cellWidth = platform_GetGameBoardCellWidth();
+    int cellHeight = platform_GetGameBoardCellHeight();
     
     for (int i = 1; i <= GAMEGRIDCOLS; i++) {
-        int col = field.left + (i * cell_width);
+        int col = field.left + (i * cellWidth);
         MoveToEx(hdc, col, field.top, NULL);
         LineTo(hdc, col, field.bottom);
     }
 
     for (int i = 1; i <= GAMEGRIDROWS; i++) {
-        int row = field.top + (i * cell_height);
+        int row = field.top + (i * cellHeight);
         MoveToEx(hdc, field.left, row, NULL);
         LineTo(hdc, field.right, row);
     }

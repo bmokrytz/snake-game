@@ -1,13 +1,13 @@
 
 #include "game.h"
 #include <stdlib.h>
+#include <stdio.h>
 #include <time.h>
 #include "platform.h"
 
 // ==================== Globals ====================
 
 GameBoard gameBoard;
-SnakeHead snake;
 
 
 // ******************** Function Implementations ********************
@@ -55,7 +55,7 @@ void initializeRand() {
 }
 
 void initializeSnake() {
-    snake.node = createSnakeNode(
+    gameBoard.snake.node = createSnakeNode(
         (SnakeNode)
         {
             .x = SNAKEHEADSTARTX,
@@ -66,15 +66,16 @@ void initializeSnake() {
             .nextNode = NULL
         }
     );
+    gameBoard.snakeNodeIterator = gameBoard.snake.node;
 
-    if (!platform_IsSnake()) {
-        platform_LogErrorMessage("Error in function setupSnakeHead() of game.h.\n\t!platform_IsSnake(). Malloc failed in createSnakeNode().\n");
+    if (platform_IsSnakeNull()) {
+        platform_LogErrorMessage("Error in function setupSnakeHead() of game.h.\n\tplatform_IsSnakeNull() == TRUE. Malloc failed in createSnakeNode().\n");
     }
 
     gameBoard.grid[SNAKEHEADSTARTX][SNAKEHEADSTARTY].containsHead = 1;
-    snake.movement_direction = DIRECTION_UP;
-    snake.boost = FALSE;
-    snake.boost_recharging = FALSE;
+    gameBoard.snake.movement_direction = DIRECTION_UP;
+    gameBoard.snake.boost = FALSE;
+    gameBoard.snake.boost_recharging = FALSE;
 }
 
 void initializeFruit() {
@@ -85,18 +86,18 @@ void initializeFruit() {
 
 void initializeCellAndNodeData() {
     if ((GAMEBOARDWIDTH % GAMEGRIDCOLS || GAMEBOARDHEIGHT % GAMEGRIDROWS) != 0) {
-        logError(L"Error in function setupGridCellDimensions() of game.h.\n\t(gameBoard.rect.width \% gameBoard.grid_cols) != 0\n");
+        platform_LogErrorMessage("Error in function setupGridCellDimensions() of game.h.\n\t(gameBoard.rect.width \% gameBoard.grid_cols) != 0\n");
     }
     gameBoard.cell_width = (gameBoard.rect.width / gameBoard.grid_cols);
     gameBoard.cell_height = (gameBoard.rect.height / gameBoard.grid_rows);
-    snake.node_diameter = gameBoard.cell_width * 2;
+    gameBoard.snake.node_diameter = gameBoard.cell_width * 2;
 }
 
 
 SnakeNode* createSnakeNode(SnakeNode config) {
     SnakeNode* node = (SnakeNode*)malloc(sizeof(SnakeNode));
     if (node == NULL) {
-        logError(L"Error in function createSnakeNode() of game.h.\n\tnode == NULL. Malloc failed.\n");
+        platform_LogErrorMessage("Error in function createSnakeNode() of game.h.\n\tnode == NULL. Malloc failed.\n");
     }
 
     node->x = config.x;
@@ -142,21 +143,21 @@ void togglePause(HWND hwnd) {
 }
 
 void enableBoost(HWND hwnd) {
-    if (gameBoard.gameStatus == START_GAME && snake.boost == FALSE) {
-        snake.boost = TRUE;
+    if (gameBoard.gameStatus == START_GAME && gameBoard.snake.boost == FALSE) {
+        gameBoard.snake.boost = TRUE;
         setGameTimer(hwnd, GAME_TIMER_BOOST_ID);
     }
 }
 
 void disableBoost(HWND hwnd) {
-    if (gameBoard.gameStatus == START_GAME && snake.boost == TRUE) {
-        snake.boost = FALSE;
+    if (gameBoard.gameStatus == START_GAME && gameBoard.snake.boost == TRUE) {
+        gameBoard.snake.boost = FALSE;
         disableGameTimer(hwnd, GAME_TIMER_BOOST_ID);
     }
 }
 
 void updateEnergyLevel(HWND hwnd) {
-    if (snake.boost == TRUE) {
+    if (gameBoard.snake.boost == TRUE) {
         gameBoard.energy_level -= ENERGY_DECAY_VALUE;
         if (gameBoard.energy_level < 0) {
             gameBoard.energy_level = 0;
@@ -187,7 +188,7 @@ Coord generateCoordinate() {
         coordinate.y = (rand() % (GAMEGRIDROWS - (2 * FRUIT_MARGIN))) + FRUIT_MARGIN;
         for (int i = 0 - COLLISION_RANGE; i <= 0 + COLLISION_RANGE; i++) {
             for (int j = 0 - COLLISION_RANGE; j <= 0 + COLLISION_RANGE; j++) {
-                if (coordinate.x + i == snake.node->x && coordinate.y + j == snake.node->y) {
+                if (coordinate.x + i == gameBoard.snake.node->x && coordinate.y + j == gameBoard.snake.node->y) {
                     coordinate_invalid = TRUE;
                     break;
                 }
@@ -213,7 +214,7 @@ void eatFruit(HWND hwnd) {
 
 
 void extendSnake(HWND hwnd) {
-    SnakeNode* ptr = snake.node;
+    SnakeNode* ptr = gameBoard.snake.node;
     while (ptr->nextNode != NULL) {
         ptr = ptr->nextNode;
     }
@@ -233,30 +234,27 @@ void extendSnake(HWND hwnd) {
 
 
 void moveSnake(HWND hwnd) {
-    
-}
-void moveSnake(HWND hwnd) {
-    if (!platform_IsSnake()) {
-        platform_LogErrorMessage("Error in function moveSnake() of game.h.\n\t!platform_IsSnake()\n");
+    if (platform_IsSnakeNull()) {
+        platform_LogErrorMessage("Error in function moveSnake() of game.h.\n\tplatform_IsSnakeNull() == TRUE\n");
     }
     Coord prev_head_coord = {0, 0};
     Coord new_head_coord = {0, 0};
     Coord prev_tail_coord = {0, 0};
     Coord new_tail_coord = {0, 0};
 
-    SnakeNode* ptr = snake.node;
+    SnakeNode* ptr = gameBoard.snake.node;
     prev_head_coord.x = ptr->x; prev_head_coord.y = ptr->y;
     ptr->prev_x = ptr->x;
     ptr->prev_y = ptr->y;
     gameBoard.grid[ptr->x][ptr->y].containsHead = 0;
 
-    if (snake.movement_direction == DIRECTION_UP) {
+    if (gameBoard.snake.movement_direction == DIRECTION_UP) {
         ptr->y -= 1;
-    } else if (snake.movement_direction == DIRECTION_DOWN) {
+    } else if (gameBoard.snake.movement_direction == DIRECTION_DOWN) {
         ptr->y += 1;
-    } else if (snake.movement_direction == DIRECTION_LEFT) {
+    } else if (gameBoard.snake.movement_direction == DIRECTION_LEFT) {
         ptr->x -= 1;
-    } else if (snake.movement_direction == DIRECTION_RIGHT) {
+    } else if (gameBoard.snake.movement_direction == DIRECTION_RIGHT) {
         ptr->x += 1;
     }
     new_head_coord.x = ptr->x; new_head_coord.y = ptr->y;
@@ -285,7 +283,7 @@ void moveSnake(HWND hwnd) {
 
 
 void changeSnakeDirection(int direction) {
-    snake.movement_direction = direction;
+    gameBoard.snake.movement_direction = direction;
 }
 
 
@@ -297,20 +295,20 @@ void incrementScore() {
 
 
 int collisionCheck() {
-    if (!platform_IsSnake()) {
-        platform_LogErrorMessage("Error in function collisionCheck() of game.h.\n\t!platform_IsSnake()\n");
+    if (platform_IsSnakeNull()) {
+        platform_LogErrorMessage("Error in function collisionCheck() of game.h.\n\tplatform_IsSnakeNull() == TRUE\n");
     }
-    if (gameBoard.grid[snake.node->x][snake.node->y].containsSnake) {
+    if (gameBoard.grid[gameBoard.snake.node->x][gameBoard.snake.node->y].containsSnake) {
         return COLLISION;
     }
     for (int i = 0 - COLLISION_RANGE; i <= 0 + COLLISION_RANGE; i++) {
         for (int j = 0 - COLLISION_RANGE; j <= 0 + COLLISION_RANGE; j++) {
-            if (gameBoard.grid[snake.node->x + i][snake.node->y + j].containsWall) {
+            if (gameBoard.grid[gameBoard.snake.node->x + i][gameBoard.snake.node->y + j].containsWall) {
                 if (i != 0 && j != 0) {
                     return COLLISION;
                 }
             }
-            else if (gameBoard.grid[snake.node->x + i][snake.node->y + j].containsFruit) {
+            else if (gameBoard.grid[gameBoard.snake.node->x + i][gameBoard.snake.node->y + j].containsFruit) {
                 return EATS_FRUIT;
             }
         }
@@ -391,7 +389,7 @@ void updateGameboard(RECT mainWindowRect) {
     gameBoard.rect.right  = gameBoard.rect.left + gameBoard.rect.width;
     gameBoard.rect.bottom = gameBoard.rect.top + gameBoard.rect.height;
     if ((GAMEBOARDWIDTH % GAMEGRIDCOLS || GAMEBOARDHEIGHT % GAMEGRIDROWS) != 0) {
-        logError(L"Error in function setupGridCellDimensions() of game.h.\n\t(gameBoard.rect.width \% gameBoard.grid_cols) != 0\n");
+        platform_LogErrorMessage("Error in function setupGridCellDimensions() of game.h.\n\t(gameBoard.rect.width \% gameBoard.grid_cols) != 0\n");
     }
     gameBoard.cell_width = (gameBoard.rect.width / gameBoard.grid_cols);
     gameBoard.cell_height = (gameBoard.rect.height / gameBoard.grid_rows);
@@ -453,21 +451,21 @@ void freeGameData() {
 
 
 void freeSnake() {
-    if (!platform_IsSnake()) {
-        platform_LogErrorMessage("Error in function freeSnake() of game.h.\n\t!platform_IsSnake()\n");
+    if (platform_IsSnakeNull()) {
+        platform_LogErrorMessage("Error in function freeSnake() of game.h.\n\tplatform_IsSnakeNull() == TRUE\n");
     }
-    SnakeNode* node = snake.node;
-    SnakeNode* freeNode = snake.node;
+    SnakeNode* node = gameBoard.snake.node;
+    SnakeNode* freeNode = gameBoard.snake.node;
     while(node != NULL) {
         node = node->nextNode;
         free(freeNode);
         freeNode = node;
     }
-    snake.node = NULL;
+    gameBoard.snake.node = NULL;
 }
 
 int countSnakeTailNodes() {
-    SnakeNode* node = snake.node->nextNode;
+    SnakeNode* node = gameBoard.snake.node->nextNode;
     int counter = 0;
     while (node != NULL) {
         counter++;
@@ -477,11 +475,11 @@ int countSnakeTailNodes() {
 }
 
 void resetSnake() {
-    if (!platform_IsSnake()) {
-        platform_LogErrorMessage("Error in function resetSnake() of game.h.\n\t!platform_IsSnake()\n");
+    if (platform_IsSnakeNull()) {
+        platform_LogErrorMessage("Error in function resetSnake() of game.h.\n\tplatform_IsSnakeNull() == TRUE\n");
     }
 
-    SnakeNode* node = snake.node;
+    SnakeNode* node = gameBoard.snake.node;
     SnakeNode* freeNode = node;
     int tailNodes = countSnakeTailNodes();
     int counter = 1;

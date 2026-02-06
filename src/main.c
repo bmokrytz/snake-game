@@ -1,48 +1,8 @@
-/**
- * @file main.c
- * @brief Entry point for the Snake game application.
- *
- * This module initializes the game systems, creates the main application
- * window, and starts the Win32 message loop. It ties together all major
- * components, including logging, game setup, and window management.
- *
- * Responsibilities:
- * - Initialize and reset log files.
- * - Set up game data and window resources.
- * - Display the main window and start the frame timer.
- * - Process incoming Windows messages until the program exits.
- *
- * @see gameSetup()
- * @see windowSetup()
- * @see wWinMain()
- */
+
 
 #include <stdio.h>
-#include "platform.h"
 #include <windows.h>
-
-/**
- * @brief The Win32 application entry point for the Snake game.
- *
- * Initializes logging, sets up the game and window systems, and then enters
- * the main Windows message loop. A timer is created to drive periodic game
- * updates through the window procedure.
- *
- * @param hInstance      Handle to the current application instance.
- * @param hPrevInstance  Reserved; always NULL in modern Windows applications.
- * @param pCmdLine       Pointer to the command line string.
- * @param nCmdShow       Controls how the window is displayed (e.g. SW_SHOW).
- *
- * @return The exit code passed to PostQuitMessage() (typically 0).
- *
- * @note This function uses the wide-character (Unicode) version of WinMain.
- *
- * @see resetLogs()
- * @see gameSetup()
- * @see windowSetup()
- * @see ShowWindow()
- * @see SetTimer()
- */
+#include "platform.h"
 
 
 
@@ -51,14 +11,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     (void)hPrevInstance;
     (void)pCmdLine;
 
-    platformResetLogs();
-    gameSetup();      // pure game state init (no Win32)
+    platform_ResetLogs();
 
-    if (!platformInit(hInstance, nCmdShow)) {
-        // If you want, logError(L"platformInit failed\n");
+    if (!platform_Init(hInstance, nCmdShow)) {
+        // If you want, logError(L"platform_Init failed\n");
         return 1;
     }
 
-    // platformInit returns after WM_QUIT / shutdown.
+    // platform_Init returns after WM_QUIT / shutdown.
     return 0;
 }

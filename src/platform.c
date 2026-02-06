@@ -9,6 +9,7 @@
 ================================== */
 BOOL platform_Init(HINSTANCE hInstance, int nCmdShow)
 {
+    gameSetup();  // pure game state init (no Win32)
     // --- Create windows, brushes, fonts, handlers ---
     windowSetup(hInstance);
 
@@ -30,9 +31,16 @@ BOOL platform_Init(HINSTANCE hInstance, int nCmdShow)
     return TRUE;
 }
 
-void platform_Shutdown(void)
-{
+void platform_Shutdown(void) {
     freeGameData();
+}
+
+void platform_ResetGame(void) {
+    resetGame(windowHandler.gameFieldWindow);
+}
+
+void platform_InitializeCellAndNodeData(void) {
+    initializeCellAndNodeData();
 }
 
 
@@ -57,6 +65,10 @@ BOOL platform_IsEnergyFontNull(void) {
     return gameBoard.energyFont == NULL;
 }
 
+void platform_RepaintEnergyDisplay(void) {
+    InvalidateRect(windowHandler.gameEnergyWindow, NULL, TRUE);
+}
+
 
 /* ===============================
    Logs
@@ -74,6 +86,14 @@ void platform_LogErrorMessage(const char* string) {
     exit(1);
 }
 
+void platform_LogDebugMessage(const char* string) {
+    int len = (int)strlen(string) + 2;  // +2 for newline and null chars
+    wchar_t* debugMsg = (wchar_t*)malloc(sizeof(wchar_t) * len);
+    swprintf(debugMsg, len, L"%hs\n", string);
+    logDebugMessage(debugMsg);
+    free(debugMsg);
+}
+
 
 /* ===============================
    API - Platform -> Game
@@ -83,7 +103,7 @@ void platform_TogglePause(void) {
 }
 
 void platform_SetDirection(int direction) {
-    snake.movement_direction = direction;
+    gameBoard.snake.movement_direction = direction;
 }
 
 void platform_SetGameStatus_startGame() {
@@ -127,17 +147,17 @@ void platform_DisableBoost(void) {
 }
 
 void platform_EnableBoostRecharge(void) {
-    snake.boost_recharging = TRUE;
+    gameBoard.snake.boost_recharging = TRUE;
     setGameTimer(windowHandler.mainWindow, GAME_TIMER_BOOST_RECHARGE_ID);
 }
 
 void platform_DisableBoostRecharge(void) {
-    snake.boost_recharging = FALSE;
+    gameBoard.snake.boost_recharging = FALSE;
     disableGameTimer(windowHandler.mainWindow, GAME_TIMER_BOOST_RECHARGE_ID);
 }
 
 BOOL platform_IsBoost(void) {
-    return snake.boost;
+    return gameBoard.snake.boost;
 }
 
 BOOL platform_IsBoostDepleted(void) {
@@ -145,11 +165,16 @@ BOOL platform_IsBoostDepleted(void) {
 }
 
 BOOL platform_IsBoostRecharging(void) {
-    return snake.boost_recharging;
+    return gameBoard.snake.boost_recharging;
 }
 
 void platform_UpdateScoreText(void) {
     swprintf(gameBoard.score_text, 20, L"%s%d", gameBoard.score_label, gameBoard.score);
+}
+
+void platform_UpdateScoreDisplay(void) {
+    InvalidateRect(windowHandler.gameDataDisplayWindow, NULL, TRUE);
+    platform_ToggleUpdateScore();
 }
 
 int platform_GetGameBoardWidth(void) {
@@ -175,9 +200,71 @@ int platform_GetTimerVal_Boost(void) {
     return GAME_TIMER_BOOST_VAL;
 }
 
+void platform_UpdateGameFieldWindow(void) {
+    InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
+}
 
+void platform_UpdateEnergy(void) {
+    updateEnergyLevel(windowHandler.mainWindow);
+    InvalidateRect(windowHandler.gameEnergyWindow, NULL, TRUE);
+}
 
+int platform_GetGameEnergyLevel(void) {
+    return gameBoard.energy_level;
+}
 
+HFONT platform_GetGameEnergyFont(void) {
+    return gameBoard.energyFont;
+}
+
+void platform_UpdateGameboardPosition(void) {
+    RECT mainWindowRect;
+    GetClientRect(windowHandler.mainWindow, &mainWindowRect);
+    updateGameboard(mainWindowRect);
+}
+
+void platform_UpdateGameboardWindow(void) {
+    platform_UpdateGameboardPosition();
+    GameBoardRect gameboardRect = getGameboardRect();
+    MoveWindow(windowHandler.gameFieldWindow, gameboardRect.left, gameboardRect.top, gameboardRect.width, gameboardRect.height, TRUE);
+}
+
+HFONT platform_GetGameScoreFont(void) {
+    return gameBoard.scoreFont;
+}
+
+wchar_t* platform_GetGameScoreText(void) {
+    return gameBoard.score_text;
+}
+
+Coord platform_GetSnakeNodeIteratorCoord(void) {
+    return (Coord){gameBoard.snake.node->x, gameBoard.snake.node->y};
+}
+
+void platform_ResetSnakeNodeIterator(void) {
+    gameBoard.snakeNodeIterator = gameBoard.snake.node;
+}
+
+BOOL platform_IncrementSnakeNodeIterator(void) {
+    if (gameBoard.snakeNodeIterator->nextNode == NULL) {
+        gameBoard.snakeNodeIterator = gameBoard.snake.node;
+        return FALSE;
+    }
+    gameBoard.snakeNodeIterator = gameBoard.snakeNodeIterator->nextNode;
+    return TRUE;
+}
+
+Coord platform_GetFruitCoord(void) {
+    return gameBoard.fruitLoc;
+}
+
+int platform_GetGameBoardCellWidth(void) {
+    return getGameBoardCellWidth();
+}
+
+int platform_GetGameBoardCellHeight(void) {
+    return getGameBoardCellHeight();
+}
 
 
 
@@ -190,52 +277,52 @@ void platform_GenerateNextFrame(HWND hwnd) {
     generateNextFrame(hwnd);
 }
 
-BOOL platform_IsSnake(void) {
-    return snake.node == NULL;
+BOOL platform_IsSnakeNull(void) {
+    return gameBoard.snake.node == NULL;
 }
 
-RECT platform_getCellBoundingRect(int x, int y) {
+RECT platform_GetCellBoundingRect(Coord cellCoord) {
     RECT rect;
-    rect.right = x * gameBoard.cell_width;
+    rect.right = cellCoord.x * gameBoard.cell_width;
     rect.left = rect.right - gameBoard.cell_width;
-    rect.bottom = y * gameBoard.cell_height;
+    rect.bottom = cellCoord.y * gameBoard.cell_height;
     rect.top = rect.bottom - gameBoard.cell_height;
     return rect;
 }
-RECT platform_getNodeBoundingRect(int x, int y) {
+RECT platform_GetNodeBoundingRect(Coord nodeCoord) {
     RECT rect;
-    rect.right = ((x + 1) * gameBoard.cell_width);
-    rect.left = rect.right - snake.node_diameter;
-    rect.bottom = ((y + 1) * gameBoard.cell_height);
-    rect.top = rect.bottom - snake.node_diameter;
+    rect.right = ((nodeCoord.x + 1) * gameBoard.cell_width);
+    rect.left = rect.right - gameBoard.snake.node_diameter;
+    rect.bottom = ((nodeCoord.y + 1) * gameBoard.cell_height);
+    rect.top = rect.bottom - gameBoard.snake.node_diameter;
     return rect;
 }
-RECT platform_getNodeInvalidationRect(int x, int y) {
+RECT platform_GetNodeInvalidationRect(Coord nodeCoord) {
     RECT rect;
-    rect.right = ((x + 1) * gameBoard.cell_width) + gameBoard.cell_width;
-    rect.left = (rect.right - snake.node_diameter) - gameBoard.cell_width;
-    rect.bottom = ((y + 1) * gameBoard.cell_height) + gameBoard.cell_height;
-    rect.top = (rect.bottom - snake.node_diameter) - gameBoard.cell_height;
+    rect.right = ((nodeCoord.x + 1) * gameBoard.cell_width) + gameBoard.cell_width;
+    rect.left = (rect.right - gameBoard.snake.node_diameter) - gameBoard.cell_width;
+    rect.bottom = ((nodeCoord.y + 1) * gameBoard.cell_height) + gameBoard.cell_height;
+    rect.top = (rect.bottom - gameBoard.snake.node_diameter) - gameBoard.cell_height;
     return rect;
 }
 
 void platform_UpdateFruitLocation(Coord prev_fruit_coord) {
-    RECT prevFruitRect = platform_getNodeInvalidationRect(prev_fruit_coord.x, prev_fruit_coord.y);
-    RECT newFruitRect = platform_getNodeInvalidationRect(gameBoard.fruitLoc.x, gameBoard.fruitLoc.y);
+    RECT prevFruitRect = platform_GetNodeInvalidationRect(prev_fruit_coord);
+    RECT newFruitRect = platform_GetNodeInvalidationRect(gameBoard.fruitLoc);
     InvalidateRect(windowHandler.gameFieldWindow, &prevFruitRect, FALSE);
     InvalidateRect(windowHandler.gameFieldWindow, &newFruitRect, FALSE);
 }
 
 void platform_UpdateSnakeHeadLocation(Coord prev_head_coord, Coord new_head_coord) {
-    RECT prevHeadRect = platform_getNodeInvalidationRect(prev_head_coord.x, prev_head_coord.y);
-    RECT newHeadRect = platform_getNodeInvalidationRect(new_head_coord.x, new_head_coord.y);
+    RECT prevHeadRect = platform_GetNodeInvalidationRect(prev_head_coord);
+    RECT newHeadRect = platform_GetNodeInvalidationRect(new_head_coord);
     InvalidateRect(windowHandler.gameFieldWindow, &prevHeadRect, FALSE);
     InvalidateRect(windowHandler.gameFieldWindow, &newHeadRect, FALSE);
 }
 
 void platform_UpdateSnakeTailLocation(Coord prev_tail_coord, Coord new_tail_coord) {
-    RECT prevTailRect = platform_getNodeInvalidationRect(prev_tail_coord.x, prev_tail_coord.y);
-    RECT newTailRect = platform_getNodeInvalidationRect(new_tail_coord.x, new_tail_coord.y);
+    RECT prevTailRect = platform_GetNodeInvalidationRect(prev_tail_coord);
+    RECT newTailRect = platform_GetNodeInvalidationRect(new_tail_coord);
     InvalidateRect(windowHandler.gameFieldWindow, &prevTailRect, FALSE);
     InvalidateRect(windowHandler.gameFieldWindow, &newTailRect, FALSE);
 }

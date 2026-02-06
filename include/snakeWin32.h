@@ -65,10 +65,6 @@
 #define ID_START_GAME   10004
 #define ID_RESET_GAME   10005
 
-// Timer
-#define NORMAL_TICK_SPEED_TIMER_ID 1
-#define NORMAL_TICK_SPEED_TIMER_VAL 45
-
 // Directions
 #define DIRECTION_UP     0
 #define DIRECTION_DOWN   1
@@ -171,7 +167,7 @@ extern int counter;
 void windowSetup(HINSTANCE hInstance);
 void initializeWindowHandler();
 void initializeAnimationHandler();
-void loadSingleFont(LPCSTR name, DWORD  fl, PVOID  res);
+void loadSingleFont(LPCWSTR name, DWORD  fl, PVOID  res);
 void loadFonts();
 void RegisterWindowClass(HINSTANCE hInstance, const wchar_t *className, WNDPROC windowProc);
 void setWindowConfigs();
@@ -204,7 +200,6 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 /*                             Window Utility                                 */
 /*----------------------------------------------------------------------------*/
 
-void updateGameboardPos();
 void updateDisplayMode();
 void switchWindows(HWND hwnd_current, HWND hwnd_next);
 void resizeMenuWindow();
@@ -238,11 +233,6 @@ void drawCircle(HDC hdc, RECT cell_bounds);
 /*----------------------------------------------------------------------------*/
 /*                              Window Cleanup                                */
 /*----------------------------------------------------------------------------*/
-
-void debugDropWindowedConfig();
-void debugDropMainWindowSizePosition();
-void debugLogRECT(RECT rect);
-void debugLogWindowRECT(WindowRECT windowRect);
 
 void windowCleanUp(void);
 void deleteBrushes(void);
