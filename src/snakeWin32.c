@@ -1,286 +1,28 @@
-/**
- * @file window.h
- * @author Brandon Mokrytzki
- * @date 07-OCT-2025
- * @brief Handles all drawing and graphical rendering for the Snake game.
- *
- * This module manages all GDI-based drawing routines including the game field,
- * snake, fruit, and debug grid. It interfaces with the Windows API through
- * device contexts (HDC) and brushes.
- *
- * Responsibilities:
- * - Drawing the main window and game window contents
- * - Rendering walls, snake segments, and background
- * - Managing drawing brushes and debug overlays
- *
- * @see <windows.h>
- * @see game.h
- * @see snake.c
+/*
+ * snakeWin32.c
+ * --------
+ * Win32 windowing + GDI rendering for Snake.
+ * Owns window creation, message handling, resizing, and drawing.
+ * Does NOT implement game rules or update game state.
  */
-#ifndef WINDOW_H
-#define WINDOW_H
-
-// Ensure Windows APIs use Unicode versions
-#ifndef UNICODE
-#define UNICODE
-#endif
-
-/*==============================================================================
- *                           INCLUDES
- *============================================================================*/
-
-#include <windows.h>
-#include "game.h"
-
-/*==============================================================================
- *                           MACROS
- *============================================================================*/
-
-#ifndef WIN_MACROS
-#define WIN_MACROS
-#define MAIN_WINDOW_CLASS L"MAIN_WIN"
-#define MENU_WINDOW_CLASS L"MENU_WIN"
-#define GAME_WINDOW_CLASS L"SNAKE_WIN"
-
-#define COLOR_SNAKEGAME_UI_TEXT RGB(32, 42, 49)
-#define COLOR_SNAKEGAME_BACKGROUND RGB(32, 42, 49)
-#define COLOR_SNAKEGAME_GAMEFIELD RGB(245, 245, 245)
-#define COLOR_SNAKEGAME_SNAKE RGB(30, 200, 70)
-#define COLOR_SNAKEGAME_FRUIT RGB(255, 140, 0)
-#define COLOR_SNAKEGAME_WALL RGB(0, 0, 0)
-
-#define DISPLAY_MODE_WINDOWED       9000
-#define DISPLAY_MODE_BORDERLESS     9001
-
-#define MAX_BUTTONS 32
-#define BUTTON_WIDTH_MAIN               100
-#define BUTTON_HEIGHT_MAIN              30
-#define BUTTON_WIDTH_MENU               130
-#define BUTTON_HEIGHT_MENU              30
-#define BUTTON_WIDTH_GAME_RESET         130
-#define BUTTON_HEIGHT_GAME_RESET        30
-
-#define BUTTON_WIDTH_GAME_CONTAINER     100
-#define BUTTON_HEIGHT_GAME_CONTAINER    30
-
-#define ID_DEBUG_1      10001
-#define ID_WINDOWED     10002
-#define ID_BORDERLESS   10003
-#define ID_START_GAME   10004
-#define ID_RESET_GAME   10005
-
-// Timer macros
-#define NORMAL_TICK_SPEED_TIMER_ID 1
-#define NORMAL_TICK_SPEED_TIMER_VAL 45
-#define SLOW_TICK_SPEED_TIMER_ID 2
-#define SLOW_TICK_SPEED_TIMER_ID 45
-#define FAST_TICK_SPEED_TIMER_ID 3
-#define FAST_TICK_SPEED_TIMER_ID 45
-#define ANIMATION_TIMER_ID 4
-#define ANIMATION_TIMER_VAL 45
-
-#endif
 
 
-typedef struct BrushHandler {
-    HBRUSH backgroundBrush;
-    HBRUSH wallBrush;
-    HBRUSH fieldBrush;
-    HBRUSH snakeBrush;
-    HBRUSH fruitBrush;
-} BrushHandler;
+#include <stdio.h>
+#include "snakeWin32.h"
+#include "platform.h"
 
-typedef struct ButtonList {
-    HWND handles[MAX_BUTTONS];
-    int count;
-} ButtonList;
-
-typedef struct ButtonConfig {
-    wchar_t label[30];
-    HWND parent;
-    int ID;
-    int x;
-    int y;
-    int width;
-    int height;
-} ButtonConfig;
-
-typedef struct WindowRECT {
-    int left;
-    int top;
-    int right;
-    int bottom;
-    int width;
-    int height;
-} WindowRECT;
-
-typedef struct WindowHandler {
-    HWND mainWindow;
-    HWND menuWindow;
-    HWND gameContainerWindow;
-    HWND gameDataDisplayWindow;
-    HWND gameFieldWindow;
-    HWND gameEnergyWindow;
-    WindowRECT windowedConfig;
-    WindowRECT borderlessConfig;
-    WindowRECT minWindowedConfig;
-    int displayMode;
-} WindowHandler;
-
-typedef struct AnimationHandler {
-    BOOL animate;
-    BOOL gameOver;
-    int gameOver_ttl;
-} AnimationHandler;
-
-typedef struct WindowState {
-    HDC     staticDC;
-    HBITMAP staticBmp;
-    HBITMAP staticOldBmp;
-
-    HDC     frameDC;
-    HBITMAP frameBmp;
-    HBITMAP frameOldBmp;
-
-    int     width;
-    int     height;
-
-    BOOL    staticDirty;
-} WindowState;
-
-
-
-/*==============================================================================
- *                           GLOBAL  VARIABLES
- *============================================================================*/
+// ==================== Globals ====================
 
 WindowHandler windowHandler;
-
 BrushHandler brushHandler;
-
 AnimationHandler animationHandler;
-
 int counter = 0;
+static onWindowCloseCallbackFn global_onClose = NULL;
 
-
-/*==============================================================================
- *                           FUNCTION  PROTOTYPES
- *============================================================================*/
-
-/** @defgroup WindowFunctions Window Management
- *  @brief Functions that handle window creation, events, and cleanup.
- *  @{
- */
-
-/*----------------------------------------------------------------------------*/
-/*                             Window Initialization                          */
-/*----------------------------------------------------------------------------*/
-
-void windowSetup(HINSTANCE hInstance);
-void initializeWindowHandler();
-void initializeAnimationHandler();
-void loadFonts();
-void RegisterWindowClass(HINSTANCE hInstance, const wchar_t *className, WNDPROC windowProc);
-void setWindowConfigs();
-void buildWindows(HINSTANCE hInstance);
-void buildMainWindow(HINSTANCE hInstance);
-void buildMenuWindow(HINSTANCE hInstance);
-void buildGameWindows(HINSTANCE hInstance);
-void buildGameContainerWindow(HINSTANCE hInstance);
-void buildGameDataDisplayWindow(HINSTANCE hInstance);
-void buildGameFieldWindow(HINSTANCE hInstance);
-void buildGameEnergyWindow(HINSTANCE hInstance);
-WindowRECT getSnakeWindowRect(HWND hwnd);
-WindowRECT getMainWindowRect();
-WindowRECT getMenuWindowRect();
-WindowRECT getGameContainerWindowRect();
-WindowRECT getGameDataDisplayWindowRect();
-WindowRECT getGameFieldWindowRect();
-WindowRECT getGameEnergyWindowRect();
 static void repaintAllWindows();
+static void resizeAllWindows();
 static void resizeAllWindowBackbuffers(HWND hwnd);
 static void resizeWindowBackbuffer(HWND hwnd);
-HWND createButton(ButtonConfig config);
-void initializeBrushes();
-
-/*----------------------------------------------------------------------------*/
-/*                             Window Procedure                               */
-/*----------------------------------------------------------------------------*/
-
-LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-
-/*----------------------------------------------------------------------------*/
-/*                             Window Utility                                 */
-/*----------------------------------------------------------------------------*/
-
-void updateGameboardPos();
-void updateDisplayMode();
-void switchWindows(HWND hwnd_current, HWND hwnd_next);
-static void resizeAllWindows();
-void resizeMenuWindow();
-void resizeGameContainerWindow();
-void resizeGameDataDisplayWindow();
-void resizeGameFieldWindow();
-void resizeGameEnergyWindow();
-BOOL CALLBACK EnumChildProc(HWND hwndChild, LPARAM lParam);
-ButtonList getButtonList(HWND parent);
-RECT getEnergyMeterOuterRect();
-
-
-/*----------------------------------------------------------------------------*/
-/*                             Window Graphics                                */
-/*----------------------------------------------------------------------------*/
-
-void paintMainWindow();
-void paintMenuWindow();
-void paintGameContainerWindow();
-void PaintGameDataDisplayWindow();
-void paintGameFieldWindow();
-void paintGameEnergyWindow();
-void drawEnergyDisplay(HDC hdc, RECT innerRect, int innerHeight);
-void drawDebugGrid(RECT field, HDC hdc);
-void drawGameField(RECT field, HDC hdc);
-void drawSnake(HDC hdc);
-void drawFruit(HDC hdc);
-void drawWalls(HDC hdc);
-void drawCircle(HDC hdc, RECT cell_bounds);
-
-/*----------------------------------------------------------------------------*/
-/*                              Window Cleanup                                */
-/*----------------------------------------------------------------------------*/
-
-void debugDropWindowedConfig();
-void debugDropMainWindowSizePosition();
-void debugLogRECT(RECT rect);
-void debugLogWindowRECT(WindowRECT windowRect);
-
-void windowCleanUp(void);
-void deleteBrushes(void);
-
-
-// TEMPORARY
-void animation_game_over(HDC hdc);
-
-void DrawOutlinedText(
-    HDC hdc,
-    LPCWSTR text,
-    RECT* rc,
-    COLORREF textColor,
-    COLORREF outlineColor,
-    int outlinePx,
-    UINT format
-);
-
-
-
-
-
-
-
-
-
-
-/** @} */  // end of WindowFunctions
 
 /*==============================================================================
  *                           FUNCTION  IMPLEMENTATIONS
@@ -290,24 +32,7 @@ void DrawOutlinedText(
 /*                              Setup                                         */
 /*----------------------------------------------------------------------------*/
 
-/**
- * @brief Initializes all window-related resources for the Snake game.
- *
- * Registers the main and game window classes, creates both windows,
- * and initializes rendering brushes. This function should be called
- * once during program startup, before the main message loop begins.
- *
- * Internally, it:
- * - Registers window classes for the main and game windows.
- * - Creates the main application window and its embedded child window.
- * - Initializes GDI brushes used for rendering.
- *
- * @param hInstance Handle to the current application instance (provided by WinMain).
- *
- * @see RegisterWindowClass()
- * @see buildWindows()
- * @see initializeBrushes()
- */
+
 void windowSetup(HINSTANCE hInstance) {
     loadFonts();
     initializeBrushes();
@@ -324,7 +49,7 @@ void initializeWindowHandler() {
     windowHandler.mainWindow = NULL;            windowHandler.menuWindow = NULL;
     windowHandler.gameContainerWindow = NULL;   windowHandler.gameFieldWindow = NULL;
     windowHandler.gameDataDisplayWindow = NULL; windowHandler.gameEnergyWindow = NULL;
-    windowHandler.displayMode = DISPLAY_MODE_BORDERLESS;
+    windowHandler.displayMode = DISPLAY_MODE_WINDOWED;
 }
 
 void initializeAnimationHandler() {
@@ -333,14 +58,16 @@ void initializeAnimationHandler() {
     animationHandler.gameOver_ttl = 0;
 }
 
+void loadSingleFont(LPCWSTR name, DWORD  fl, PVOID  res) {
+    int fontsLoaded = AddFontResourceEx(name, fl, res);
+    if (fontsLoaded == 0) platform_LogErrorMessage("Error loading font.\n\tFont loading failed.\n");
+}
+
 void loadFonts() {
-    int fontsLoaded = AddFontResourceEx(L"assets\\font\\Jersey_25\\Jersey25-Regular.ttf", FR_PRIVATE, NULL);
-    if (fontsLoaded == 0) logError(L"Error loading font in windowSetup().\n\tFont loading failed.\n");
-    fontsLoaded = AddFontResourceEx(L"assets\\font\\DM_Serif_Text\\DMSerifText-Regular.ttf", FR_PRIVATE, NULL);
-    if (fontsLoaded == 0) logError(L"Error loading font in windowSetup().\n\tFont loading failed.\n");
-    fontsLoaded = AddFontResourceEx(L"assets\\font\\DM_Serif_Text\\DMSerifText-Italic.ttf", FR_PRIVATE, NULL);
-    if (fontsLoaded == 0) logError(L"Error loading font in windowSetup().\n\tFont loading failed.\n");
-    gameBoard.scoreFont = CreateFont(
+    loadSingleFont(L"assets\\font\\Jersey_25\\Jersey25-Regular.ttf", FR_PRIVATE, NULL);
+    loadSingleFont(L"assets\\font\\DM_Serif_Text\\DMSerifText-Regular.ttf", FR_PRIVATE, NULL);
+    loadSingleFont(L"assets\\font\\DM_Serif_Text\\DMSerifText-Italic.ttf", FR_PRIVATE, NULL);
+    HFONT scoreFont = CreateFont(
         64,                 // height (font size in logical units)
         0,                  // width (0 = auto)
         0,                  // escapement
@@ -356,11 +83,12 @@ void loadFonts() {
         VARIABLE_PITCH,
         TEXT("Jersey 25")
     );
-    if (gameBoard.scoreFont == NULL) {
-        logError(L"Error creating font (gameBoard.scoreFont) in windowSetup().\n\tFont creation failed.\n");
+    platform_LoadScoreFont(scoreFont);
+    if (platform_IsScoreFontNull()) {
+        platform_LogErrorMessage("Error creating font (gameBoard.scoreFont) in windowSetup().\n\tFont creation failed.\n");
     }
 
-    gameBoard.energyFont = CreateFont(
+    HFONT energyFont = CreateFont(
         24,                 // height (font size in logical units)
         0,                  // width (0 = auto)
         0,                  // escapement
@@ -376,26 +104,13 @@ void loadFonts() {
         VARIABLE_PITCH,
         TEXT("Jersey 25")
     );
-    if (gameBoard.energyFont == NULL) {
-        logError(L"Error creating font (gameBoard.energyFont) in windowSetup().\n\tFont creation failed.\n");
+    platform_LoadEnergyFont(energyFont);
+    if (platform_IsEnergyFontNull()) {
+        platform_LogErrorMessage("Error creating font (gameBoard.energyFont) in windowSetup().\n\tFont creation failed.\n");
     }
 }
 
-/**
- * @brief Registers a custom window class with the Windows API.
- *
- * Defines the properties of a new window class, including its
- * window procedure, instance handle, cursor, and class name.
- * This function must be called before creating any windows
- * using that class.
- *
- * @param hInstance  Handle to the current application instance.
- * @param className  The unique name for the window class to register.
- * @param windowProc The callback function that will handle window messages.
- *
- * @see SnakeWindowProc()
- * @see buildWindows()
- */
+
 void RegisterWindowClass (HINSTANCE hInstance, const wchar_t * className, WNDPROC windowProc) {
     WNDCLASS wc = { };
 
@@ -418,8 +133,8 @@ void setWindowConfigs() {
     windowHandler.borderlessConfig.right = windowHandler.borderlessConfig.left + windowHandler.borderlessConfig.width;
     windowHandler.borderlessConfig.bottom = windowHandler.borderlessConfig.top + windowHandler.borderlessConfig.height;
 
-    windowHandler.minWindowedConfig.width = GAMEBOARDWIDTH + 300;
-    windowHandler.minWindowedConfig.height = GAMEBOARDHEIGHT + 600;
+    windowHandler.minWindowedConfig.width = platform_GetGameBoardWidth() + 300;
+    windowHandler.minWindowedConfig.height = platform_GetGameBoardHeight() + 600;
     windowHandler.minWindowedConfig.left = (screenWidth / 2) - (windowHandler.minWindowedConfig.width / 2);
     windowHandler.minWindowedConfig.top = (screenHeight / 2) - (windowHandler.minWindowedConfig.height / 2);
     windowHandler.minWindowedConfig.right = windowHandler.minWindowedConfig.left + windowHandler.minWindowedConfig.width;
@@ -433,36 +148,18 @@ void setWindowConfigs() {
     windowHandler.windowedConfig.bottom = windowHandler.windowedConfig.top + windowHandler.windowedConfig.height;
 }
 
-/**
- * @brief Creates the main application window and the embedded game window.
- *
- * This function creates two Win32 windows:
- * - The **main window** (WS_OVERLAPPEDWINDOW), which contains the title bar
- *   and acts as the parent container.
- * - The **game window** (WS_CHILD | WS_VISIBLE), which displays the game grid.
- *
- * After window creation, the game board’s position is updated and aligned
- * within the parent window’s client area.
- *
- * Logs an error if either window fails to create.
- *
- * @param hInstance Handle to the current application instance.
- *
- * @see logError()
- * @see updateGameboardPos()
- * @see getGameboardRect()
- */
+
 void buildWindows(HINSTANCE hInstance) {
 
     buildMainWindow(hInstance);
     if (windowHandler.mainWindow == NULL) {
-        logError(L"Error in function buildWindows() of window.h.\n\tmainWindow == NULL. Window creation failed.\n");
+        platform_LogErrorMessage("Error in function buildWindows() of snakeWin32.h.\n\tmainWindow == NULL. Window creation failed.\n");
     }
-    updateGameboardPos();
-    initializeCellAndNodeData();
+    platform_UpdateGameboardPosition();
+    platform_InitializeCellAndNodeData();
     buildMenuWindow(hInstance);
     if (windowHandler.menuWindow == NULL) {
-        logError(L"Error in function buildWindows() of window.h.\n\tmenuWindow == NULL. Window creation failed.\n");
+        platform_LogErrorMessage("Error in function buildWindows() of snakeWin32.h.\n\tmenuWindow == NULL. Window creation failed.\n");
     }
     buildGameWindows(hInstance);
     ShowWindow(windowHandler.mainWindow, SW_SHOW);
@@ -479,11 +176,14 @@ void buildWindows(HINSTANCE hInstance) {
 
 void buildMainWindow(HINSTANCE hInstance) {
     WindowRECT mainWinRect = getMainWindowRect();
+    DWORD winStyle;
+    if (windowHandler.displayMode == DISPLAY_MODE_BORDERLESS) winStyle = WS_POPUP | WS_VISIBLE;
+    else winStyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
     windowHandler.mainWindow = CreateWindowEx(
         0,                              // Optional window styles.
         MAIN_WINDOW_CLASS,                      // Window class
         L"SNAKE",                       // Window text
-        WS_POPUP,            // Window style
+        winStyle,            // Window style
         // Size and position
         mainWinRect.left, mainWinRect.top, 
         mainWinRect.width, mainWinRect.height,
@@ -515,16 +215,6 @@ WindowRECT getSnakeWindowRect(HWND hwnd) {
     }
     else {
         return getMainWindowRect();
-        /*
-        wchar_t msg[900];
-        swprintf(msg, 900, L"In getSnakeWindowRect():\n\tmainWindow HWND = %p\n", (void*)windowHandler.mainWindow);
-        swprintf(msg, 900, L"%s\tmenuWindow HWND = %p\n", msg, (void*)windowHandler.menuWindow);
-        swprintf(msg, 900, L"%s\tgameContainerWindow HWND = %p\n", msg, (void*)windowHandler.gameContainerWindow);
-        swprintf(msg, 900, L"%s\tgameDataDisplayWindow HWND = %p\n", msg, (void*)windowHandler.gameDataDisplayWindow);
-        swprintf(msg, 900, L"%s\tgameFieldWindow HWND = %p\n", msg, (void*)windowHandler.gameFieldWindow);
-        swprintf(msg, 900, L"%s\tgetSnakeWindowRect was passed HWND = %p\n\n", msg, (void*)hwnd);
-        logError(msg);
-        */
     }
 }
 
@@ -570,19 +260,19 @@ WindowRECT getMenuWindowRect() {
 void buildGameWindows(HINSTANCE hInstance) {
     buildGameContainerWindow(hInstance);
     if (windowHandler.gameContainerWindow == NULL) {
-        logError(L"Error in function buildGameWindows() of window.h.\n\tgameContainerWindow == NULL. Window creation failed.\n");
+        platform_LogErrorMessage("Error in function buildGameWindows() of snakeWin32.h.\n\tgameContainerWindow == NULL. Window creation failed.\n");
     }
     buildGameDataDisplayWindow(hInstance);
     if (windowHandler.gameDataDisplayWindow == NULL) {
-        logError(L"Error in function buildGameWindows() of window.h.\n\tgameDataDisplayWindow == NULL. Window creation failed.\n");
+        platform_LogErrorMessage("Error in function buildGameWindows() of snakeWin32.h.\n\tgameDataDisplayWindow == NULL. Window creation failed.\n");
     }
     buildGameFieldWindow(hInstance);
     if (windowHandler.gameFieldWindow == NULL) {
-        logError(L"Error in function buildGameWindows() of window.h.\n\tgameFieldWindow == NULL. Window creation failed.\n");
+        platform_LogErrorMessage("Error in function buildGameWindows() of snakeWin32.h.\n\tgameFieldWindow == NULL. Window creation failed.\n");
     }
     buildGameEnergyWindow(hInstance);
     if (windowHandler.gameEnergyWindow == NULL) {
-        logError(L"Error in function buildGameWindows() of window.h.\n\tgameEnergyWindow == NULL. Window creation failed.\n");
+        platform_LogErrorMessage("Error in function buildGameWindows() of snakeWin32.h.\n\tgameEnergyWindow == NULL. Window creation failed.\n");
     }
 }
 
@@ -670,17 +360,17 @@ void buildGameFieldWindow(HINSTANCE hInstance) {
 }
 
 WindowRECT getGameFieldWindowRect() {
-    //RECT mainRect; GetClientRect(windowHandler.mainWindow, &mainRect);
-    //updateGameboard(mainRect);
-    GameBoardRect gameboardRect = getGameboardRect();
+    RECT gameboardRect = platform_GetGameBoardRect();
+    int width = gameboardRect.right - gameboardRect.left;
+    int height = gameboardRect.bottom - gameboardRect.top;
 
     WindowRECT gameFieldWindowRect = {
         .left = gameboardRect.left,
         .top = gameboardRect.top,
-        .right = gameboardRect.left + gameboardRect.width,
-        .bottom = gameboardRect.top + gameboardRect.height,
-        .width = gameboardRect.width,
-        .height = gameboardRect.height
+        .right = gameboardRect.left + width,
+        .bottom = gameboardRect.top + height,
+        .width = width,
+        .height = height
     };
     return gameFieldWindowRect;
 }
@@ -728,44 +418,6 @@ WindowRECT getGameEnergyWindowRect() {
     return gameEnergyWindowRect;
 }
 
-/*
-WindowRECT getGameEnergyWindowRect() {
-    RECT containerRect; GetClientRect(windowHandler.gameContainerWindow, &containerRect);
-    RECT gameFieldRect; GetClientRect(windowHandler.gameFieldWindow, &gameFieldRect);
-    WindowRECT gameFieldWindowRect = getGameFieldWindowRect();
-    wchar_t msg[900];
-    swprintf(msg, 900, L"getGameEnergyWindowRect Debug:\n\n");
-    swprintf(msg, 900, L"%scontainerRect:\n", msg);
-    logDebugMessage(msg);
-    debugLogRECT(containerRect);
-    swprintf(msg, 900, L"gameFieldWindowRect:\n");
-    logDebugMessage(msg);
-    debugLogWindowRECT(gameFieldWindowRect);
-    int gameFieldHeight = gameFieldRect.bottom - gameFieldRect.top;
-    int energyWindowHeight = (gameFieldHeight / 3);
-    int energyWindowWidth = 50;
-    int energyMeterWallThickness = 10;
-    int padding_right = 20;
-    int right = (gameFieldRect.left - padding_right);
-    int left = right - energyWindowWidth;
-    int top = (gameFieldRect.top + (gameFieldHeight / 2)) - (energyWindowHeight / 2);
-    int bottom = top + energyWindowHeight;
-
-    WindowRECT gameEnergyWindowRect = {
-        .left = left,
-        .top = top,
-        .right = right,
-        .bottom = bottom,
-        .width = energyWindowWidth,
-        .height = energyWindowHeight
-    };
-    swprintf(msg, 900, L"gameEnergyWindowRect:\n");
-    logDebugMessage(msg);
-    debugLogWindowRECT(gameEnergyWindowRect);
-    return gameEnergyWindowRect;
-}
-*/
-
 HWND createButton(ButtonConfig config) {
     return CreateWindowW(
         L"BUTTON",               // Predefined class name
@@ -778,72 +430,7 @@ HWND createButton(ButtonConfig config) {
         NULL);
 }
 
-void debugDropWindowedConfig() {
-    wchar_t msg[700];
-    swprintf(msg, 700, L"Window Config:\n");
-    swprintf(msg, 700, L"%swindowHandler.windowedConfig.left = %d. windowHandler.windowedConfig.top = %d.\n", msg, windowHandler.windowedConfig.left, windowHandler.windowedConfig.top);
-    swprintf(msg, 700, L"%swindowHandler.windowedConfig.width = %d. windowHandler.windowedConfig.height = %d.\n\n", msg, windowHandler.windowedConfig.width, windowHandler.windowedConfig.height);
-    logDebugMessage(msg);
-}
 
-void debugDropMainWindowSizePosition() {
-    wchar_t msg[700];
-    WindowRECT mainWindowRect = getMainWindowRect();
-    swprintf(msg, 700, L"Main Window:\n");
-    swprintf(msg, 700, L"%smainWindowRect.left = %d. mainWindowRect.top = %d.\n", msg, mainWindowRect.left, mainWindowRect.top);
-    swprintf(msg, 700, L"%smainWindowRect.right = %d. mainWindowRect.bottom = %d.\n", msg, mainWindowRect.right, mainWindowRect.bottom);
-    swprintf(msg, 700, L"%smainWindowRect.width = %d. mainWindowRect.height = %d.\n\n", msg, mainWindowRect.width, mainWindowRect.height);
-    logDebugMessage(msg);
-}
-
-void debugLogRECT(RECT rect) {
-    wchar_t msg[700];
-    swprintf(msg, 700, L"\tRECT:\n");
-    swprintf(msg, 700, L"%s\t\trect.left = %d. rect.top = %d.\n", msg, rect.left, rect.top);
-    swprintf(msg, 700, L"%s\t\trect.right = %d. rect.bottom = %d.\n", msg, rect.right, rect.bottom);
-    logDebugMessage(msg);
-}
-
-void debugLogWindowRECT(WindowRECT windowRect) {
-    wchar_t msg[700];
-    swprintf(msg, 700, L"\twindowRECT:\n");
-    swprintf(msg, 700, L"%s\t\twindowRect.left = %d. windowRect.top = %d.\n", msg, windowRect.left, windowRect.top);
-    swprintf(msg, 700, L"%s\t\twindowRect.right = %d. windowRect.bottom = %d.\n", msg, windowRect.right, windowRect.bottom);
-    swprintf(msg, 700, L"%s\t\twindowRect.width = %d. windowRect.height = %d.\n", msg, windowRect.width, windowRect.height);
-    logDebugMessage(msg);
-}
-
-/**
- * @brief Main window procedure for handling Win32 messages.
- *
- * Processes all system and user-generated events for both the main window
- * and the embedded game window. This function handles painting, keyboard
- * input, resizing, and timer-based frame updates. It also performs cleanup
- * on application shutdown.
- *
- * #### Message handling:
- * - **WM_DESTROY** — Cleans up all resources and posts a quit message.
- * - **WM_SETCURSOR** — Restores the default cursor behavior.
- * - **WM_PAINT** — Draws the main or game window depending on which handle triggered the event.
- * - **WM_KEYDOWN** — Handles player input for snake movement (WASD or arrow keys) and pause toggling.
- * - **WM_TIMER** — Advances the game state and triggers redraws when the game is running.
- * - **WM_SIZE** — Updates window and game board layout when the window is resized.
- *
- * @param hwnd   Handle to the window receiving the message.
- * @param uMsg   The message identifier (e.g., WM_PAINT, WM_KEYDOWN, etc.).
- * @param wParam Additional message information (message-dependent).
- * @param lParam Additional message information (message-dependent).
- *
- * @return The result of message processing, as required by the Win32 API.
- *
- * @note Unhandled messages are passed to DefWindowProc() for default processing.
- *
- * @see paintMainWindow()
- * @see paintGameWindow()
- * @see generateNextFrame()
- * @see updateGameboardPos()
- * @see freeGameData()
- */
 LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg)
@@ -851,25 +438,12 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         case WM_DESTROY:
         {
             windowCleanUp();
-            freeGameData();
+            global_onClose();
             PostQuitMessage(0);
             return 0;
         }
         case WM_CREATE:
         {
-            if (windowHandler.mainWindow == NULL) {
-                createButton(
-                    (ButtonConfig){
-                        .label = L"Debug",
-                        .parent = hwnd,
-                        .ID = ID_DEBUG_1,
-                        .x = 20,
-                        .y = 20,
-                        .width = BUTTON_WIDTH_MAIN,
-                        .height = BUTTON_HEIGHT_MAIN
-                    }
-                );
-            }
             if (windowHandler.mainWindow != NULL && windowHandler.menuWindow == NULL) {
                 RECT mainRect; GetClientRect(windowHandler.mainWindow, &mainRect);
                 createButton(
@@ -924,11 +498,6 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         case WM_COMMAND:
         {
             switch(LOWORD(wParam)) {
-                case ID_DEBUG_1:
-                {
-                    logDebugMessage(L"This is debug button.\n");
-                    break;
-                }
                 case ID_BORDERLESS:
                 {
                     if (windowHandler.displayMode == DISPLAY_MODE_BORDERLESS) return 0;
@@ -945,9 +514,9 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                 }
                 case ID_RESET_GAME:
                 {
-                    gameBoard.gameStatus = PAUSE_GAME;
-                    resetGame(windowHandler.gameFieldWindow);
-                    swprintf(gameBoard.score_text, 20, L"%s%d", gameBoard.score_label, gameBoard.score);
+                    platform_SetGameStatus_pauseGame();
+                    platform_ResetGame();
+                    platform_UpdateScoreText();
                     InvalidateRect(windowHandler.gameContainerWindow, NULL, TRUE);
                     InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
                 }
@@ -991,35 +560,34 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         }
         case WM_KEYDOWN:
         {
-            
             if (wParam == 'W' || wParam == 'w' || wParam == VK_UP) {
-                if (gameBoard.gameStatus != PAUSE_GAME) {
-                    changeSnakeDirection(DIRECTION_UP);
+                if (!platform_IsPauseGame()) {
+                    platform_SetDirection(DIRECTION_UP);
                 }
             }
             else if (wParam == 'A' || wParam == 'a' || wParam == VK_LEFT) {
-                if (gameBoard.gameStatus != PAUSE_GAME) {
-                    changeSnakeDirection(DIRECTION_LEFT);
+                if (!platform_IsPauseGame()) {
+                    platform_SetDirection(DIRECTION_LEFT);
                 }
             }
             else if (wParam == 'S' || wParam == 's' || wParam == VK_DOWN) {
-                if (gameBoard.gameStatus != PAUSE_GAME) {
-                    changeSnakeDirection(DIRECTION_DOWN);
+                if (!platform_IsPauseGame()) {
+                    platform_SetDirection(DIRECTION_DOWN);
                 }
             }
             else if (wParam == 'D' || wParam == 'd' || wParam == VK_RIGHT) {
-                if (gameBoard.gameStatus != PAUSE_GAME) {
-                    changeSnakeDirection(DIRECTION_RIGHT);
+                if (!platform_IsPauseGame()) {
+                    platform_SetDirection(DIRECTION_RIGHT);
                 }
             }
             else if (wParam == VK_RETURN) {
-                togglePause(windowHandler.mainWindow);
+                platform_TogglePause();
             }
             else if (wParam == VK_SHIFT) {
-                if (snake.boost_depleted == FALSE) {
-                    setBoost(windowHandler.mainWindow);
-                    if (snake.boost_recharging == TRUE) {
-                        stopBoostRecharge(windowHandler.mainWindow);
+                if (!platform_IsBoostDepleted()) {
+                    platform_EnableBoost();
+                    if (platform_IsBoostRecharging()) {
+                        platform_DisableBoostRecharge();
                     }
                 }
             }
@@ -1028,12 +596,9 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         case WM_KEYUP:
         {
             if (wParam == VK_SHIFT) {
-                disableBoost(windowHandler.mainWindow);
-                if (snake.boost_depleted == TRUE) {
-                    snake.boost_depleted = FALSE;
-                }
-                if (snake.boost_recharging == FALSE) {
-                    startBoostRecharge(windowHandler.mainWindow);
+                platform_DisableBoost();
+                if (!platform_IsBoostRecharging()) {
+                    platform_EnableBoostRecharge();
                 }
             }
         }
@@ -1041,46 +606,42 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         {
             UINT_PTR timer_val = (UINT_PTR)wParam;
             switch (timer_val) {
-                case NORMAL_TICK_SPEED_TIMER_ID:
-                    if (snake.boost == FALSE) {
-                        if (gameBoard.gameStatus == START_GAME) {
-                            if (gameBoard.update_score == TRUE) {
-                                InvalidateRect(windowHandler.gameDataDisplayWindow, NULL, TRUE);
-                                gameBoard.update_score = FALSE;
+                case GAME_TIMER_NORMAL_SPEED_ID:
+                    if (!platform_IsBoost()) {
+                        if (platform_IsStartGame()) {
+                            if (platform_IsUpdateScore()) {
+                                platform_UpdateScoreDisplay();
                             }
-                            generateNextFrame(windowHandler.gameFieldWindow);
+                            platform_GenerateNextFrame(windowHandler.gameFieldWindow);
                         }
-                        if (gameBoard.gameStatus == GAME_OVER) {
-                            InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
+                        if (platform_IsGameOver()) {
+                            platform_UpdateGameFieldWindow();
                         }
-                        InvalidateRect(windowHandler.gameEnergyWindow, NULL, TRUE);
+                        platform_RepaintEnergyDisplay();
                     }
                     break;
                 case GAME_TIMER_BOOST_ID:
-                    if (snake.boost == TRUE) {
-                        if (gameBoard.gameStatus == START_GAME && snake.boost == TRUE) {
-                            if (gameBoard.energy_level > 0) {
-                                if (gameBoard.update_score == TRUE) {
-                                    InvalidateRect(windowHandler.gameDataDisplayWindow, NULL, TRUE);
-                                    gameBoard.update_score = FALSE;
+                    if (platform_IsBoost()) {
+                        if (platform_IsStartGame()) {
+                            if (!platform_IsBoostDepleted()) {
+                                if (platform_IsUpdateScore()) {
+                                    platform_UpdateScoreDisplay();
                                 }
-                                generateNextFrame(windowHandler.gameFieldWindow);
+                                platform_GenerateNextFrame(windowHandler.gameFieldWindow);
                             }
                             else {
-                                setBoostDepleted(windowHandler.mainWindow);
-                                startBoostRecharge(windowHandler.mainWindow);
+                                platform_EnableBoostRecharge();
                             }
                         }
-                        if (gameBoard.gameStatus == GAME_OVER) {
-                            InvalidateRect(windowHandler.gameFieldWindow, NULL, TRUE);
+                        if (platform_IsGameOver()) {
+                            platform_UpdateGameFieldWindow();
                         }
-                        updateEnergyLevel(windowHandler.mainWindow);
-                        InvalidateRect(windowHandler.gameEnergyWindow, NULL, TRUE);
+                        platform_UpdateEnergy();
                     }
                     break;
                 case GAME_TIMER_BOOST_RECHARGE_ID:
-                    if (snake.boost_recharging == TRUE) {
-                        updateEnergyLevel(windowHandler.mainWindow);
+                    if (platform_IsBoostRecharging()) {
+                        platform_UpdateEnergy();
                     }
                     break;
             }
@@ -1089,7 +650,7 @@ LRESULT CALLBACK SnakeWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         case WM_SIZE:
         {
             if (hwnd == windowHandler.mainWindow) {
-                updateGameboardPos();
+                platform_UpdateGameboardWindow();
             }
             resizeAllWindows();
             resizeAllWindowBackbuffers(hwnd);
@@ -1178,23 +739,6 @@ static void resizeWindowBackbuffer(HWND hwnd) {
     windowST->staticDirty = TRUE;
 }
 
-/*
-typedef struct WindowState {
-    HDC     staticDC;
-    HBITMAP staticBmp;
-    HBITMAP staticOldBmp;
-
-    HDC     frameDC;
-    HBITMAP frameBmp;
-    HBITMAP frameOldBmp;
-
-    int     width;
-    int     height;
-
-    BOOL    staticDirty;
-} WindowState;
-*/
-
 void resizeMenuWindow() {
     WindowRECT menuWindowRect = getMenuWindowRect();
     SetWindowPos(windowHandler.menuWindow, NULL, 
@@ -1273,23 +817,7 @@ ButtonList getButtonList(HWND parent) {
     return list;
 }
 
-/**
- * @brief Initializes GDI brushes used for rendering the Snake game.
- *
- * Creates solid color brushes for all major game elements, including
- * the background, walls, game field, snake, and fruit. These brushes
- * are used by the paint functions to fill the appropriate regions.
- *
- * The colors are defined by constants such as COLOR_SNAKEGAME_BACKGROUND
- * and COLOR_SNAKEGAME_SNAKE.
- *
- * @note Brushes created here should be released later in windowCleanUp()
- *       to avoid GDI resource leaks.
- *
- * @see paintMainWindow()
- * @see paintGameWindow()
- * @see windowCleanUp()
- */
+
 void initializeBrushes() {
     brushHandler.backgroundBrush = CreateSolidBrush(COLOR_SNAKEGAME_BACKGROUND);
     brushHandler.wallBrush = CreateSolidBrush(COLOR_SNAKEGAME_WALL);
@@ -1298,31 +826,14 @@ void initializeBrushes() {
     brushHandler.fruitBrush = CreateSolidBrush(COLOR_SNAKEGAME_FRUIT);
 }
 
+void win32SetOnCloseCallback(onWindowCloseCallbackFn fn) {
+    global_onClose = fn;
+}
+
 /*----------------------------------------------------------------------------*/
 /*                              Utility                                       */
 /*----------------------------------------------------------------------------*/
 
-/**
- * @brief Updates the position and dimensions of the game board within the main window.
- *
- * Retrieves the client area of the main window and passes it to updateGameboard(),
- * which recalculates the board's centered position and adjusts cell sizing based
- * on the current window dimensions.
- *
- * This function is typically called:
- * - After the main window is created (during setup).
- * - When the window is resized (on WM_SIZE).
- *
- * @see updateGameboard()
- * @see SnakeWindowProc()
- */
-void updateGameboardPos() {
-    RECT mainWindowRect;
-    GetClientRect(windowHandler.mainWindow, &mainWindowRect);
-    updateGameboard(mainWindowRect);
-    GameBoardRect gameboardRect = getGameboardRect();
-    MoveWindow(windowHandler.gameFieldWindow, gameboardRect.left, gameboardRect.top, gameboardRect.width, gameboardRect.height, TRUE);
-}
 
 void updateDisplayMode() {
     HWND hwndForeground = GetForegroundWindow();
@@ -1351,18 +862,7 @@ void switchWindows(HWND hwnd_current, HWND hwnd_next) {
 /*                              Painting                                      */
 /*----------------------------------------------------------------------------*/
 
-/**
- * @brief Handles painting of the main window background and title text.
- *
- * Fills the main window with the background brush and draws the centered
- * "Snake Game" title above the game board area. This function is called
- * when the main window receives a WM_PAINT message.
- *
- * @note Only paints static UI elements outside the playable game area.
- *
- * @see paintGameWindow()
- * @see getGameboardRect()
- */
+
 void paintMainWindow() {
     WindowState* st = (WindowState*)GetWindowLongPtr(windowHandler.mainWindow, GWLP_USERDATA);
     PAINTSTRUCT ps;
@@ -1416,32 +916,22 @@ void PaintGameDataDisplayWindow() {
         FillRect(st->staticDC, &winRect, brushHandler.backgroundBrush);
         st->staticDirty = FALSE;
     }
+
     BitBlt(st->frameDC, 0, 0, st->width, st->height, st->staticDC, 0, 0, SRCCOPY);
 
     RECT dataDisplayRect; GetClientRect(windowHandler.gameDataDisplayWindow, &dataDisplayRect);
     int savedDCConfig = SaveDC(st->frameDC);
     SetBkMode(st->frameDC, TRANSPARENT);
     SetTextColor(st->frameDC, RGB(255, 255, 255));
-    SelectObject(st->frameDC, gameBoard.scoreFont);
-    DrawText(st->frameDC, gameBoard.score_text, -1, &dataDisplayRect, DT_LEFT | DT_SINGLELINE);
+    SelectObject(st->frameDC, platform_GetGameScoreFont());
+    DrawText(st->frameDC, platform_GetGameScoreText(), -1, &dataDisplayRect, DT_LEFT | DT_SINGLELINE);
     RestoreDC(st->frameDC, savedDCConfig);
 
     BitBlt(hdc, 0, 0, st->width, st->height, st->frameDC, 0, 0, SRCCOPY);
     EndPaint(windowHandler.gameDataDisplayWindow, &ps);
 }
 
-/**
- * @brief Handles painting of the game window and its visual elements.
- *
- * Draws the full game field, walls, snake, and optional debug grid.
- * Called whenever the game window receives a WM_PAINT message or
- * after a timer-driven frame update.
- *
- * @see drawGameField()
- * @see drawWalls()
- * @see drawSnake()
- * @see drawGridDebug()
- */
+
 void paintGameFieldWindow() {
     WindowState* st = (WindowState*)GetWindowLongPtr(windowHandler.gameFieldWindow, GWLP_USERDATA);
     PAINTSTRUCT ps;
@@ -1459,10 +949,10 @@ void paintGameFieldWindow() {
     drawSnake(st->frameDC);
     drawFruit(st->frameDC);
 
-    if (gameBoard.gameStatus == GAME_OVER) {
+    if (platform_IsGameOver()) {
         int savedDCConfig = SaveDC(st->frameDC);
         SetBkMode(st->frameDC, TRANSPARENT);
-        SelectObject(st->frameDC, gameBoard.scoreFont);
+        SelectObject(st->frameDC, platform_GetGameScoreFont());
 
         DrawOutlinedText(
             st->frameDC, 
@@ -1519,7 +1009,7 @@ void paintGameEnergyWindow() {
 
     RECT energyRect = innerRect;
     int innerHeight = (innerRect.bottom - innerRect.top);
-    double energyPercentage = (double)(gameBoard.energy_level / 100.0);
+    double energyPercentage = (double)(platform_GetGameEnergyLevel() / 100.0);
     int energyHeight = (int)(innerHeight * energyPercentage);
     energyRect.top = energyRect.bottom - energyHeight;
 
@@ -1621,9 +1111,9 @@ void drawEnergyDisplay(HDC hdc, RECT innerRect, int innerHeight) {
     }
 
     wchar_t energyValueString[5];
-    swprintf(energyValueString, 5, L"%d", gameBoard.energy_level);
+    swprintf(energyValueString, 5, L"%d", platform_GetGameEnergyLevel());
 
-    SelectObject(hdc, gameBoard.energyFont);
+    SelectObject(hdc, platform_GetGameEnergyFont());
 
     DrawOutlinedText(
         hdc, 
@@ -1659,7 +1149,7 @@ void animation_game_over(HDC hdc) {
     HPEN hOldPen = SelectObject(hdc, hPen);
 
     Ellipse(hdc, animationRect.left, animationRect.top, animationRect.right, animationRect.bottom);
-
+ 
     SelectObject(hdc, hOldPen);
     SelectObject(hdc, hOldBrush);
     DeleteObject(hPen);
@@ -1667,77 +1157,39 @@ void animation_game_over(HDC hdc) {
 
 }
 
-/*
-void drawCircle(HDC hdc, RECT cell_bounds) {
-    Ellipse(hdc, cell_bounds.left, cell_bounds.top, cell_bounds.right, cell_bounds.bottom);
-}
-*/
 
-/**
- * @brief Draws the snake on the game board.
- *
- * Iterates through all snake nodes and renders each segment as a filled circle
- * using the snake brush. The head is drawn first, followed by the body segments.
- * Logs an error if the snake has not been initialized.
- *
- * @param hdc Handle to the device context used for drawing.
- *
- * @see getCellBoundingRect()
- * @see drawCircle()
- * @see logError()
- */
 void drawSnake(HDC hdc) {
-    if (snake.node == NULL) {
-        logError(L"Error in function drawSnake(HDC hdc) of window.h.\n\tsnake.node == NULL\n");
+    if (platform_IsSnakeNull()) {
+        platform_LogErrorMessage("Error in function drawSnake(HDC hdc) of snakeWin32.h.\n\tplatform_IsSnakeNull() == TRUE\n");
     }
-    SnakeNode* node = snake.node;
     HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, brushHandler.snakeBrush);
-    while (node != NULL) {
-        RECT node_bounds = getNodeBoundingRect(node->x, node->y);
-        drawCircle(hdc, node_bounds);
-        node = node->nextNode;
+    platform_ResetSnakeNodeIterator();
+    RECT snakeCoordRect = platform_GetNodeBoundingRect(platform_GetSnakeNodeIteratorCoord());
+    drawCircle(hdc, snakeCoordRect);
+    while (platform_IncrementSnakeNodeIterator()) {
+        RECT snakeCoordRect = platform_GetNodeBoundingRect(platform_GetSnakeNodeIteratorCoord());
+        drawCircle(hdc, snakeCoordRect);
     }
     SelectObject(hdc, oldBrush);
 }
 
-/**
- * @brief Draws the background field of the game area.
- *
- * Fills the specified rectangular region with the game field brush.
- * Typically called before drawing the snake and walls.
- *
- * @param field Rectangle defining the game field boundaries.
- * @param hdc   Handle to the device context used for drawing.
- *
- * @see paintGameWindow()
- */
+
 void drawGameField(RECT field, HDC hdc) {
     FillRect(hdc, &field, brushHandler.fieldBrush);
 }
 
-/**
- * @brief Draws the perimeter walls around the game grid.
- *
- * Renders circular wall segments along the outermost rows and columns
- * of the grid using the wall brush. These represent the game boundaries
- * that the snake cannot cross.
- *
- * @param hdc Handle to the device context used for drawing.
- *
- * @see drawCircle()
- * @see getCellBoundingRect()
- */
+
 void drawWalls(HDC hdc) {
     HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, brushHandler.wallBrush);
     for (int i = 1; i <= GAMEGRIDCOLS; i++) {
-        RECT cell_bounds = getCellBoundingRect(i, 1);
+        RECT cell_bounds = platform_GetCellBoundingRect((Coord){i, 1});
         FillRect(hdc, &cell_bounds, brushHandler.wallBrush);
-        cell_bounds = getCellBoundingRect(i, GAMEGRIDCOLS);
+        cell_bounds = platform_GetCellBoundingRect((Coord){i, GAMEGRIDCOLS});
         FillRect(hdc, &cell_bounds, brushHandler.wallBrush);
 
-        cell_bounds = getCellBoundingRect(1, i);
+        cell_bounds = platform_GetCellBoundingRect((Coord){1, i});
         FillRect(hdc, &cell_bounds, brushHandler.wallBrush);
-        cell_bounds = getCellBoundingRect(GAMEGRIDCOLS, i);
+        cell_bounds = platform_GetCellBoundingRect((Coord){GAMEGRIDCOLS, i});
         FillRect(hdc, &cell_bounds, brushHandler.wallBrush);
     }
     SelectObject(hdc, oldBrush);
@@ -1747,7 +1199,7 @@ void drawFruit(HDC hdc) {
     // --- Fruit body (orange) ---
     HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, brushHandler.fruitBrush);
 
-    RECT fruit_bounds = getNodeBoundingRect(gameBoard.fruitLoc.x, gameBoard.fruitLoc.y);
+    RECT fruit_bounds = platform_GetNodeBoundingRect(platform_GetFruitCoord());
 
     Ellipse(hdc, fruit_bounds.left, fruit_bounds.top, fruit_bounds.right, fruit_bounds.bottom);
 
@@ -1759,16 +1211,7 @@ void drawFruit(HDC hdc) {
     MoveToEx(hdc, stem_x, stem_y, NULL);
     LineTo(hdc, stem_x + 10, stem_y + 10);
 
-    /*
-    // --- Leaf ---
-    HBRUSH leafBrush = CreateSolidBrush(RGB(40, 160, 60));
-    SelectObject(hdc, leafBrush);
-    POINT leaf[4] = {
-        {150, 80}, {170, 70}, {160, 60}, {150, 80}
-    };
-    Polygon(hdc, leaf, 4);
 
-    */
     // --- Restore & cleanup ---
     SelectObject(hdc, oldBrush);
     SelectObject(hdc, oldPen);
@@ -1776,52 +1219,27 @@ void drawFruit(HDC hdc) {
     DeleteObject(stemPen);
 }
 
-/**
- * @brief Draws a filled circle within a specified rectangle.
- *
- * Uses the currently selected brush in the device context to render
- * a filled ellipse corresponding to the given bounding rectangle.
- *
- * @param hdc         Handle to the device context used for drawing.
- * @param cell_bounds Rectangle specifying the circle’s bounding box.
- *
- * @see drawSnake()
- * @see drawWalls()
- */
+
 void drawCircle(HDC hdc, RECT cell_bounds) {
     Ellipse(hdc, cell_bounds.left, cell_bounds.top, cell_bounds.right, cell_bounds.bottom);
 }
 
-/**
- * @brief Draws grid lines over the game field for debugging purposes.
- *
- * Creates a temporary black pen and draws vertical and horizontal
- * grid lines to visualize the cell layout. The pen is deleted after
- * drawing to prevent GDI resource leaks.
- *
- * @param field Rectangle defining the visible game field area.
- * @param hdc   Handle to the device context used for drawing.
- *
- * @note Intended for development/debugging only. Can be disabled in release builds.
- *
- * @see getGameBoardCellWidth()
- * @see getGameBoardCellHeight()
- */
+
 void drawDebugGrid(RECT field, HDC hdc) {
     HPEN hPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
     HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
 
-    int cell_width = getGameBoardCellWidth();
-    int cell_height = getGameBoardCellHeight();
+    int cellWidth = platform_GetGameBoardCellWidth();
+    int cellHeight = platform_GetGameBoardCellHeight();
     
     for (int i = 1; i <= GAMEGRIDCOLS; i++) {
-        int col = field.left + (i * cell_width);
+        int col = field.left + (i * cellWidth);
         MoveToEx(hdc, col, field.top, NULL);
         LineTo(hdc, col, field.bottom);
     }
 
     for (int i = 1; i <= GAMEGRIDROWS; i++) {
-        int row = field.top + (i * cell_height);
+        int row = field.top + (i * cellHeight);
         MoveToEx(hdc, field.left, row, NULL);
         LineTo(hdc, field.right, row);
     }
@@ -1834,32 +1252,12 @@ void drawDebugGrid(RECT field, HDC hdc) {
 /*                              Clean Up                                      */
 /*----------------------------------------------------------------------------*/
 
-/**
- * @brief Releases all window-related graphical resources.
- *
- * Cleans up and deallocates all GDI objects (brushes) created during
- * window initialization. This function should be called when the
- * application exits or when the window is destroyed (WM_DESTROY).
- *
- * @see deleteBrushes()
- * @see initializeBrushes()
- */
+
 void windowCleanUp() {
     deleteBrushes();
 }
 
-/**
- * @brief Deletes all GDI brushes used for rendering the Snake game.
- *
- * Calls DeleteObject() on every brush handle created by initializeBrushes(),
- * including brushes for the background, walls, field, snake, and fruit.
- * Ensures proper cleanup of GDI resources to prevent memory or handle leaks.
- *
- * @note Must be called before application exit or when the main window is destroyed.
- *
- * @see initializeBrushes()
- * @see windowCleanUp()
- */
+
 void deleteBrushes() {
     DeleteObject(brushHandler.backgroundBrush);
     DeleteObject(brushHandler.wallBrush);
@@ -1867,5 +1265,3 @@ void deleteBrushes() {
     DeleteObject(brushHandler.snakeBrush);
     DeleteObject(brushHandler.fruitBrush);
 }
-
-#endif
