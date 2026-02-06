@@ -1,3 +1,12 @@
+/*
+ * game.h
+ * ------
+ * Public interface for the core Snake game logic and state.
+ * Declares functions to initialize, update, and reset the game.
+ *
+ * No Win32/windowing or rendering code should be included here.
+ */
+
 #include "gameTimers.h"
 #include "gameMacros.h"
 #include "gameStructs.h"

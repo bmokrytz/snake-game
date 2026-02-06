@@ -1,3 +1,12 @@
+/*
+ * game.c
+ * --------
+ * Owns all core game state and logic for Snake.
+ * Handles initialization, game loop updates, collision, scoring, and snake movement.
+ * Does NOT handle rendering or platform/window logic.
+ *
+ * Used by: platform.c
+ */
 
 #include "game.h"
 #include <stdlib.h>

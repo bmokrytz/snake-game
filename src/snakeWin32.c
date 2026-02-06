@@ -1,3 +1,11 @@
+/*
+ * snakeWin32.c
+ * --------
+ * Win32 windowing + GDI rendering for Snake.
+ * Owns window creation, message handling, resizing, and drawing.
+ * Does NOT implement game rules or update game state.
+ */
+
 
 #include <stdio.h>
 #include "snakeWin32.h"

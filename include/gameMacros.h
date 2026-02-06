@@ -1,3 +1,9 @@
+/*
+ * gameMacros.h
+ * -----------
+ * Compile-time constants for board sizing, directions, and game tuning values.
+ */
+
 #ifndef GAME_MACROS_H
 #define GAME_MACROS_H
 

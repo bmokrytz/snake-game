@@ -1,3 +1,9 @@
+/*
+ * gameTimers.h
+ * -----------
+ * Timer IDs and timer intervals used by the game loop.
+ */
+
 #ifndef GAME_TIMERS_H
 #define GAME_TIMERS_H
 

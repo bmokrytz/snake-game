@@ -1,3 +1,9 @@
+/*
+ * gameStructs.h
+ * ------------
+ * Core data structures shared across the game and platform layers.
+ */
+
 #ifndef GAME_STRUCTS_H
 #define GAME_STRUCTS_H
 

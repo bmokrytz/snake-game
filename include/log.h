@@ -1,3 +1,12 @@
+/*
+ * log.h
+ * --------
+ * Public interface for the error and debug logging system.
+ * Provides functions to log, delete logs, and reset logs.
+ *
+ * This header exposes log API only — no logging logic.
+ */
+
 #ifndef LOG_H
 #define LOG_H
 

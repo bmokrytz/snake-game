@@ -1,3 +1,9 @@
+/*
+ * log.c
+ * --------
+ * Simple file-based debug/error logging helpers.
+ */
+
 
 #include "log.h"
 

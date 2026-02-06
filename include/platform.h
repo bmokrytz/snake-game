@@ -1,3 +1,11 @@
+/*
+ * platform.h
+ * ----------
+ * Public interface for the platform bridge layer.
+ * Declares functions used to initialize the app, route input/timers, and expose
+ * game state needed by the Win32 renderer.
+ */
+
 #ifndef PLATFORM_H
 #define PLATFORM_H
 

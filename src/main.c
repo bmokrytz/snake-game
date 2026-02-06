@@ -1,3 +1,9 @@
+/*
+ * main.c
+ * --------
+ * Program entry point for Snake.
+ * Resets logs and initializes the platform layer.
+ */
 
 
 #include <stdio.h>

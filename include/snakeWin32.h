@@ -1,22 +1,13 @@
-/**
- * @file snakeWin32.h
- * @author Brandon Mokrytzki
- * @date 07-OCT-2025
- * @brief Handles all drawing and graphical rendering for the Snake game.
+/*
+ * snakeWin32.h
+ * -----------
+ * Public interface for the Win32 windowing and rendering module.
+ * Declares window setup, message handling, and drawing helpers used by platform.c.
  *
- * This module manages all GDI-based drawing routines including the game field,
- * snake, fruit, and debug grid. It interfaces with the Windows API through
- * device contexts (HDC) and brushes.
- *
- * Responsibilities:
- * - Drawing the main window and game window contents
- * - Rendering walls, snake segments, and background
- * - Managing drawing brushes and debug overlays
- *
- * @see <windows.h>
- * @see game.h
- * @see snake.c
+ * No game rules/state live here (those are in game.c).
  */
+
+
 #ifndef WINDOW_H
 #define WINDOW_H
 

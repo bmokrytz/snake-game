@@ -1,3 +1,11 @@
+/*
+ * platform.c
+ * --------
+ * Bridge between game logic and Win32 rendering.
+ * Owns the application lifecycle (init, message loop, shutdown) and routes input/timers
+ * between game.c and snakeWin32.c.
+ */
+
 
 #include "platform.h"
 #include "snakeWin32.h"
